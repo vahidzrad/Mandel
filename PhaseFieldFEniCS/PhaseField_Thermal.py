@@ -12,7 +12,11 @@
 
 # Preliminaries and mesh
 from dolfin import *
-mesh = Mesh('mesh.xml')
+hsize=0.01
+
+#mesh = Mesh('mesh.xml')
+mesh = Mesh('meshes/fracking_hsize'+str(float(hsize))+'.xml')
+mesh_fun = MeshFunction("size_t", mesh,"meshes/fracking_hsize"+str(float(hsize))+"_facet_region.xml")
 
 # Define Space
 V = FunctionSpace(mesh, 'CG', 1)
@@ -72,7 +76,7 @@ bctop = DirichletBC(W.sub(1), load, top)
 bc_u = [bcbot, bctop]
 bc_phi = [DirichletBC(V, Constant(1.0), Crack)]
 #Added by Mostafa--------------------------		
-bc_T = [DirichletBC(V, Constant(303.0), top)]
+bc_T = [DirichletBC(V, Constant(303.0), Crack)]
 #------------------------------------------
 
 
@@ -118,7 +122,7 @@ fname = open('ForcevsDisp.txt', 'w')
 while t<=1.0:
     t += deltaT
     if t >=0.7:
-        deltaT = 0.0001
+        deltaT = deltaT #0.0001 #Edited by Mostafa
     load.t=t*u_r
     iter = 0
     err = 1
@@ -128,7 +132,6 @@ while t<=1.0:
         solver_disp.solve()
         solver_phi.solve()
         solver_T.solve() 
-        conc_T << Tnew
 
 	
 
@@ -145,7 +148,8 @@ while t<=1.0:
             print ('Iterations:', iter, ', Total time', t)
 
             if round(t*1e4) % 10 == 0:
-                conc_f << pnew
+                conc_f << pnew 
+				conc_T << Tnew
 
 
                 Traction = dot(sigma(unew, Told),n)
