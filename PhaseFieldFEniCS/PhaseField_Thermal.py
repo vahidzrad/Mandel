@@ -23,9 +23,8 @@ V = FunctionSpace(mesh, 'CG', 1)
 W = VectorFunctionSpace(mesh, 'CG', 1)
 WW = FunctionSpace(mesh, 'DG', 0)
 p, q = TrialFunction(V), TestFunction(V)
-#Added by Mostafa--------------------------
+
 dT, T_ = TrialFunction(V), TestFunction(V)
-#------------------------------------------
 u, v = TrialFunction(W), TestFunction(W)
 
 # Introduce manually the material parameters
@@ -34,7 +33,6 @@ l = 0.015
 lmbda = 121.1538e3
 mu = 80.7692e3
 
-#Added by Mostafa--------------------------
 T0 = Constant(293.)  
 E = 70e3
 nu = 0.3
@@ -47,18 +45,14 @@ cV = Constant(910e-6)*rho # specific heat per unit volume at constant strain
 k = Constant(237e-6)  # thermal conductivity
 deltaT  = 0.1
 
-#------------------------------------------
-
 # Constituive functions
 def epsilon(u):
     return sym(grad(u))
 #def sigma(u):
 #    return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
-#Added by Mostafa--------------------------
 def sigma(u, dT):
-    return (lmbda*tr(epsilon(u)) - kappa*dT)*Identity(2) + 2*mu*epsilon(u)	
-#------------------------------------------
-	
+    return (lmbda*tr(epsilon(u)) - kappa*dT)*Identity(2) + 2*mu*epsilon(u)
+
 def psi(u):
     return 0.5*(lmbda+mu)*(0.5*(tr(epsilon(u))+abs(tr(epsilon(u)))))**2+\
            mu*inner(dev(epsilon(u)),dev(epsilon(u)))		
@@ -75,10 +69,8 @@ bcbot= DirichletBC(W, Constant((0.0,0.0)), bot)
 bctop = DirichletBC(W.sub(1), load, top)
 bc_u = [bcbot, bctop]
 bc_phi = [DirichletBC(V, Constant(1.0), Crack)]
-#Added by Mostafa--------------------------		
+	
 bc_T = [DirichletBC(V, Constant(303.0), Crack)]
-#------------------------------------------
-
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
@@ -88,25 +80,22 @@ n = FacetNormal(mesh)
 
 # Variational form
 unew, uold = Function(W), Function(W)
-pnew, pold, Hold = Function(V), Function(V), Function(V)
-#Added by Mostafa--------------------------		
+pnew, pold, Hold = Function(V), Function(V), Function(V)	
 Tnew, Told = Function(V), Function(V)
-#------------------------------------------
 
 E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u, Told))*dx
 E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
             *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
-#Added by Mostafa--------------------------		
+		
 therm_form = (cV*(dT-Told)/deltaT*T_ + kappa*T0*tr(epsilon(unew-uold))/deltaT*T_ + dot(k*grad(dT), grad(T_)))*dx
-#------------------------------------------		
+	
 p_disp = LinearVariationalProblem(lhs(E_du), rhs(E_du), unew, bc_u)
 p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
 solver_disp = LinearVariationalSolver(p_disp)
 solver_phi = LinearVariationalSolver(p_phi)
-#Added by Mostafa--------------------------		
+		
 p_T = LinearVariationalProblem(lhs(therm_form), rhs(therm_form), Tnew, bc_T)
 solver_T = LinearVariationalSolver(p_T)
-#------------------------------------------
 
 # Initialization of the iterative procedure and output requests
 t = 0
