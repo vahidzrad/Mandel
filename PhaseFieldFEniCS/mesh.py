@@ -57,7 +57,6 @@ geofile = \
 
 """%(hsize)
 
-mesh = pygmsh.generate_mesh(geofile)
 
 subdir = "meshes/"
 _mesh  = Mesh() #creat empty mesh object
