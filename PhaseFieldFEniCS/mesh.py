@@ -10,9 +10,6 @@ import sympy, sys, math, os, subprocess, shutil
 from subprocess import call
 from dolfin_utils.meshconvert import meshconvert
 
-import sys
-sys.path.insert(0, "/Applications/Gmsh.app/Contents/MacOS")
-import gmsh
 
 #=======================================================================================
 # Input date
