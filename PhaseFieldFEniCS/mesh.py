@@ -9,6 +9,8 @@ from mshr import *
 import sympy, sys, math, os, subprocess, shutil
 from subprocess import call
 from dolfin_utils.meshconvert import meshconvert
+import pygmsh
+import numpy as np
 
 #=======================================================================================
 # Input date
@@ -55,9 +57,12 @@ geofile = \
 
 """%(hsize)
 
+mesh = pygmsh.generate_mesh(geofile)
 
 subdir = "meshes/"
 _mesh  = Mesh() #creat empty mesh object
+
+
 if not os.path.isfile(subdir + meshname + ".xdmf"):
         #if MPI.rank(mpi_comm_world()) == 0:
         # Create temporary .geo file defining the mesh
