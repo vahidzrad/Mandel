@@ -92,7 +92,7 @@ if not os.path.isfile(subdir + meshname + ".xdmf"):
                 mesh = Mesh(subdir + meshname + ".xml")
                 subdomains = MeshFunction("size_t", mesh, subdir + meshname + "_physical_region.xml")
                 boundaries = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
-                HDF5 = HDF5File(subdir + meshname + "_physical_facet.h5", "w")
+                HDF5 = HDF5File(MPI.comm_world, subdir + meshname + "_physical_facet.h5", "w")
                 HDF5.write(mesh, "/mesh")
                 HDF5.write(subdomains, "/subdomains")
                 HDF5.write(boundaries, "/boundaries")
