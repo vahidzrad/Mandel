@@ -42,11 +42,11 @@ E = 340e3 #MPa
 nu = 0.22
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))
 mu = Constant(E/2/(1+nu)) 
-rho = 2700.     # density
-alpha = Constant(8.e-6) # thermal expansion coefficient
+rho = 2700.e-9     # density #kg/mm^3
+alpha = Constant(8.0e-6) # thermal expansion coefficient #K^-1
 kappa  = Constant(alpha*(2*mu + 3*lmbda)) 
-cV = Constant(910e-6)*rho # specific heat per unit volume at constant strain
-k = Constant(237e-6)  # thermal conductivity
+cV = Constant(961.5e3)*rho # specific heat per unit volume at constant strain #J/(kgK)= 1e3 MPa*mm^3/(kgK)
+k = Constant(6.)  # thermal conductivity #W/(mK)=J/(mKs)= MPa*mm^2/(Ks).
 deltaT  = 0.1
 
 # Constituive functions
