@@ -71,13 +71,13 @@ right = CompiledSubDomain("near(x[0], 25.) && on_boundary")
 class Pinpoint(SubDomain):
     TOL = 1e-3
     def __init__(self, coords):
-	self.coords = np.array(coords)
-	SubDomain.__init__(self)
+        self.coords = np.array(coords)
+        SubDomain.__init__(self)
     def move(self, coords):
-	self.coords[:] = np.array(coords)
+        self.coords[:] = np.array(coords)
     def inside(self, x, on_boundary):
-    	TOL = 1e-3
-	return np.linalg.norm(x-self.coords) < TOL
+        TOL = 1e-3
+        return np.linalg.norm(x-self.coords) < TOL
 
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
