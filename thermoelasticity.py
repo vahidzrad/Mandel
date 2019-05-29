@@ -20,7 +20,7 @@
 from __future__ import print_function
 from dolfin import *
 from mshr import *
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #get_ipython().magic(u'matplotlib notebook')
 
 L, H = 5, 0.3
