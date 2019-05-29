@@ -12,7 +12,9 @@
 
 # Preliminaries and mesh
 from dolfin import *
-hsize=0.01
+hsize=0.1
+L = 50.
+H = 9.8
 
 #mesh = Mesh('mesh.xml')
 mesh = Mesh('meshes/fracking_hsize'+str(float(hsize))+'.xml')
@@ -33,7 +35,7 @@ l = 0.015
 lmbda = 121.1538e3
 mu = 80.7692e3
 
-T0 = Constant(293.)  
+T0 = Constant(680.)  
 E = 70e3
 nu = 0.3
 #lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))
@@ -60,17 +62,43 @@ def H(uold,unew,Hold):
     return conditional(lt(psi(uold),psi(unew)),psi(unew),Hold)
 		
 # Boundary conditions
-top = CompiledSubDomain("near(x[1], 0.5) && on_boundary")
-bot = CompiledSubDomain("near(x[1], -0.5) && on_boundary")
+top = CompiledSubDomain("near(x[1], 4.9) && on_boundary")
+bot = CompiledSubDomain("near(x[1], -4.9) && on_boundary")
+left = CompiledSubDomain("near(x[0], -25.) && on_boundary")
+right = CompiledSubDomain("near(x[0], 25.) && on_boundary")
+
+
+class Pinpoint(SubDomain):
+    TOL = 1e-3
+    def __init__(self, coords):
+	self.coords = np.array(coords)
+	SubDomain.__init__(self)
+    def move(self, coords):
+	self.coords[:] = np.array(coords)
+    def inside(self, x, on_boundary):
+    	TOL = 1e-3
+	return np.linalg.norm(x-self.coords) < TOL
+
+pinpoint_l = Pinpoint([0.,0.])
+pinpoint_r = Pinpoint([L,0.])
+
+
 def Crack(x):
     return abs(x[1]) < 1e-03 and x[0] <= 0.0
 load = Expression("t", t = 0.0, degree=1)
-bcbot= DirichletBC(W, Constant((0.0,0.0)), bot)
-bctop = DirichletBC(W.sub(1), load, top)
-bc_u = [bcbot, bctop]
-bc_phi = [DirichletBC(V, Constant(1.0), Crack)]
-	
-bc_T = [DirichletBC(V, Constant(303.0), Crack)]
+
+bc_u_bot= DirichletBC(W, Constant((0.0,0.0)), bot)
+bc_u_top = DirichletBC(W.sub(1), load, top)
+bc_u_pt_l = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
+bc_u_pt_r = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
+bc_u = [bc_u_pt_l, bc_u_pt_r]
+
+bc_phi = [DirichletBC(V, Constant(0.0), right)]
+
+bc_T_top = DirichletBC(V, Constant(300.0), top)
+bc_T_bot = DirichletBC(V, Constant(300.0), bot)
+bc_T_left = DirichletBC(V, Constant(300.0), left)
+bc_T = [bc_T_top, bc_T_bot, bc_T_left]
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
@@ -100,6 +128,7 @@ solver_T = LinearVariationalSolver(p_T)
 # Initialization of the iterative procedure and output requests
 t = 0
 u_r = 0.007
+u_T = 100.
 #deltaT  = 0.1
 tol = 1e-3
 conc_f = File ("./ResultsDir/phi.pvd")
@@ -112,7 +141,7 @@ while t<=1.0:
     t += deltaT
     if t >=0.7:
         deltaT = deltaT #0.0001 #Edited by Mostafa
-    load.t=t*u_r
+    load.t=t*u_T
     iter = 0
     err = 1
 
