@@ -87,7 +87,7 @@ if not os.path.isfile(subdir + meshname + ".xdmf"):
         	XDMF = XDMFFile(MPI.comm_world, subdir + meshname + ".xdmf")
         	XDMF.write(mesh)
         	XDMF.read(_mesh)
-
+		
         if os.path.isfile(subdir + meshname + "_physical_region.xml") and os.path.isfile(subdir + meshname + "_facet_region.xml"):
 		if MPI.comm_world.rank == 0:
                 	mesh = Mesh(subdir + meshname + ".xml")
