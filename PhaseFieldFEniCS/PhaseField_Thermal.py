@@ -58,7 +58,7 @@ def psi(u):
            mu*inner(dev(epsilon(u)),dev(epsilon(u)))		
 def H(uold,unew,Hold):
     return conditional(lt(psi(uold),psi(unew)),psi(unew),Hold)
-		
+    
 # Boundary conditions
 top = CompiledSubDomain("near(x[1], 0.5) && on_boundary")
 bot = CompiledSubDomain("near(x[1], -0.5) && on_boundary")
@@ -69,7 +69,7 @@ bcbot= DirichletBC(W, Constant((0.0,0.0)), bot)
 bctop = DirichletBC(W.sub(1), load, top)
 bc_u = [bcbot, bctop]
 bc_phi = [DirichletBC(V, Constant(1.0), Crack)]
-	
+
 bc_T = [DirichletBC(V, Constant(303.0), Crack)]
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
@@ -86,14 +86,14 @@ Tnew, Told = Function(V), Function(V)
 E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u, Told))*dx
 E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
             *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
-		
+        
 therm_form = (cV*(dT-Told)/deltaT*T_ + kappa*T0*tr(epsilon(unew-uold))/deltaT*T_ + dot(k*grad(dT), grad(T_)))*dx
-	
+
 p_disp = LinearVariationalProblem(lhs(E_du), rhs(E_du), unew, bc_u)
 p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
 solver_disp = LinearVariationalSolver(p_disp)
 solver_phi = LinearVariationalSolver(p_phi)
-		
+
 p_T = LinearVariationalProblem(lhs(therm_form), rhs(therm_form), Tnew, bc_T)
 solver_T = LinearVariationalSolver(p_T)
 
@@ -122,7 +122,7 @@ while t<=1.0:
         solver_phi.solve()
         solver_T.solve() 
 
-	
+    
 
         err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
         err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
@@ -133,18 +133,18 @@ while t<=1.0:
         Hold.assign(project(psi(unew), WW))
 
         if err < tol:
-		
+        
             print ('Iterations:', iter, ', Total time', t)
 
             if round(t*1e4) % 10 == 0:
                 conc_f << pnew 
-		conc_T << Tnew
+                conc_T << Tnew
 
 
                 Traction = dot(sigma(unew, Told),n)
                 fy = Traction[1]*ds(1)
                 fname.write(str(t*u_r) + "\t")
                 fname.write(str(assemble(fy)) + "\n")
-	    	    
+                
 fname.close()
 print ('Simulation completed') 
