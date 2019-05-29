@@ -82,7 +82,7 @@ if not os.path.isfile(subdir + meshname + ".xdmf"):
         meshconvert.convert2xml(subdir + meshname + ".msh", subdir + meshname + ".xml", "gmsh")
 
         # Convert to XDMF
-        #MPI.barrier(mpi_comm_world())
+        MPI.barrier(MPI.comm_world)
         mesh = Mesh(subdir + meshname + ".xml")
         XDMF = XDMFFile(subdir + meshname + ".xdmf")
         XDMF.write(mesh)
