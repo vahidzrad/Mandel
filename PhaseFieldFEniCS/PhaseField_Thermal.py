@@ -32,18 +32,18 @@ dT, T_ = TrialFunction(V), TestFunction(V)
 u, v = TrialFunction(W), TestFunction(W)
 
 # Introduce manually the material parameters
-Gc =  2.7
-l = 0.015
-lmbda = 121.1538e3
-mu = 80.7692e3
+Gc =  42.47e3  # MPa.mm      Hint: J/m^2=1e-3 MPa.mm
+l = 4*hsize
+#lmbda = 121.1538e3
+#mu = 80.7692e3
 
 T0 = Constant(680.)  
-E = 70e3
-nu = 0.3
-#lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))
-#mu = Constant(E/2/(1+nu)) 
+E = 340e3 #MPa
+nu = 0.22
+lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))
+mu = Constant(E/2/(1+nu)) 
 rho = 2700.     # density
-alpha = 2.31e-5 # thermal expansion coefficient
+alpha = Constant(8.e-6) # thermal expansion coefficient
 kappa  = Constant(alpha*(2*mu + 3*lmbda)) 
 cV = Constant(910e-6)*rho # specific heat per unit volume at constant strain
 k = Constant(237e-6)  # thermal conductivity
@@ -87,6 +87,7 @@ pinpoint_r = Pinpoint([L,0.])
 
 def Crack(x):
     return abs(x[1]) < 1e-03 and x[0] <= 0.0
+
 load = Expression("t", t = 0.0, degree=1)
 
 bc_u_bot= DirichletBC(W, Constant((0.0,0.0)), bot)
@@ -117,7 +118,7 @@ E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u, Told))*dx
 E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
             *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
 		
-therm_form = (cV*(dT-Told)/deltaT*T_ + kappa*T0*tr(epsilon(unew-uold))/deltaT*T_ + dot(k*grad(dT), grad(T_)))*dx
+therm_form = (cV*(dT-Told)/deltaT*T_ +  dot(k*grad(dT), grad(T_)))*dx
 	
 p_disp = LinearVariationalProblem(lhs(E_du), rhs(E_du), unew, bc_u)
 p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
