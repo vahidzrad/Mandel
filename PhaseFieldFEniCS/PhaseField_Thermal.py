@@ -91,8 +91,8 @@ load = Expression("t", t = 0.0, degree=1)
 
 bc_u_bot= DirichletBC(W, Constant((0.0,0.0)), bot)
 bc_u_top = DirichletBC(W.sub(1), load, top)
-bc_u_pt_l = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
-bc_u_pt_r = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
+bc_u_pt_l = DirichletBC(W, Constant([0.,0.]), pinpoint_l, method='pointwise')
+bc_u_pt_r = DirichletBC(W, Constant([0.,0.]), pinpoint_r, method='pointwise')
 bc_u = [bc_u_pt_l, bc_u_pt_r]
 
 bc_phi = [DirichletBC(V, Constant(0.0), right)]
