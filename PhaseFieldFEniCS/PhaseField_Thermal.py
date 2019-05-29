@@ -167,7 +167,7 @@ while t<=1.0:
 
             if round(t*1e4) % 10 == 0:
                 conc_f << pnew 
-		conc_T << Tnew
+                conc_T << Tnew
 
 
                 Traction = dot(sigma(unew, Told),n)
