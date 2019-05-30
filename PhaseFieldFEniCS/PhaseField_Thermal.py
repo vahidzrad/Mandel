@@ -168,6 +168,7 @@ while t<=1.0:
 
         uold.assign(unew)
         pold.assign(pnew)
+        Told.assign(Tnew)
         Hold.assign(project(psi(unew), WW))
 
         if err < tol:
