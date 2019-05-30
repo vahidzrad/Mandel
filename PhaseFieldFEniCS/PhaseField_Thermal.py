@@ -113,6 +113,7 @@ n = FacetNormal(mesh)
 unew, uold = Function(W), Function(W)
 pnew, pold, Hold = Function(V), Function(V), Function(V)	
 Tnew, Told = Function(V), Function(V)
+Told = project(T0, V)
 
 E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u, Told))*dx
 E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
