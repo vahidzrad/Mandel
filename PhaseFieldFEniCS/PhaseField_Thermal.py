@@ -47,7 +47,7 @@ alpha = Constant(8.0e-6) # thermal expansion coefficient #K^-1
 kappa  = Constant(alpha*(2*mu + 3*lmbda)) 
 cV = Constant(961.5e3)*rho # specific heat per unit volume at constant strain #J/(kgK)= 1e3 MPa*mm^3/(kgK)
 k = Constant(6.)  # thermal conductivity #W/(mK)=J/(mKs)= MPa*mm^2/(Ks).
-deltaT  = 0.001
+deltaT  = 0.00001
 
 # Constituive functions
 def epsilon(u):
