@@ -160,8 +160,8 @@ while t<=1.0:
         err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
         err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
         err = max(err_u,err_phi)
-        print 'err_u', err_u
-	print 'err_phi', err_phi
+        print('err_u', err_u)
+	print('err_phi', err_phi)
 
         uold.assign(unew)
         pold.assign(pnew)
