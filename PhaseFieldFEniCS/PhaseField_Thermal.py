@@ -47,7 +47,7 @@ alpha = Constant(8.0e-6) # thermal expansion coefficient #K^-1
 kappa  = Constant(alpha*(2*mu + 3*lmbda)) 
 cV = Constant(961.5e3)*rho # specific heat per unit volume at constant strain #J/(kgK)= 1e3 MPa*mm^3/(kgK)
 k = Constant(6.)  # thermal conductivity #W/(mK)=J/(mKs)= MPa*mm^2/(Ks).
-deltaT  = 0.1
+deltaT  = 0.001
 
 # Constituive functions
 def epsilon(u):
@@ -119,20 +119,20 @@ E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u, Told))*dx
 E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
             *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
 		
-therm_form = (cV*(dT-Told)/deltaT*T_ +  dot(k*grad(dT), grad(T_)))*dx
+E_T = (cV*(dT-Told)/deltaT*T_ +  dot(k*grad(dT), grad(T_)))*dx
 	
 p_disp = LinearVariationalProblem(lhs(E_du), rhs(E_du), unew, bc_u)
 p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
 solver_disp = LinearVariationalSolver(p_disp)
 solver_phi = LinearVariationalSolver(p_phi)
 		
-p_T = LinearVariationalProblem(lhs(therm_form), rhs(therm_form), Tnew, bc_T)
+p_T = LinearVariationalProblem(lhs(E_T), rhs(E_T), Tnew, bc_T)
 solver_T = LinearVariationalSolver(p_T)
 
 # Initialization of the iterative procedure and output requests
 t = 0
 u_r = 0.007
-u_T = 100.
+u_T = 1.
 #deltaT  = 0.1
 tol = 1e-3
 conc_f = File ("./ResultsDir/phi.pvd")
@@ -159,9 +159,12 @@ while t<=1.0:
 
         err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
         err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
-        err = max(err_u,err_phi)
+        err_T = errornorm(Tnew,Told,norm_type = 'l2',mesh = None)
+	
+        err = max(err_u,err_phi, err_T)
         print('err_u', err_u)
         print('err_phi', err_phi)
+        print('err_T', err_T)
 
         uold.assign(unew)
         pold.assign(pnew)
