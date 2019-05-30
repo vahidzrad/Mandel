@@ -14,7 +14,7 @@
 from dolfin import *
 import numpy as np
 
-hsize=0.1
+hsize=0.8
 L = 50.
 H = 9.8
 
