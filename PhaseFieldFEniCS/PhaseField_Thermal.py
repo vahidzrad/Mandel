@@ -143,8 +143,8 @@ fname = open('ForcevsDisp.txt', 'w')
 # Staggered scheme
 while t<=1.0:
     t += deltaT
-    if t >=0.7:
-        deltaT = deltaT #0.0001 #Edited by Mostafa
+    #if t >=0.7:
+    #    deltaT = deltaT #0.0001 #Edited by Mostafa
     load.t=t*u_T
     iter = 0
     err = 1
@@ -160,7 +160,9 @@ while t<=1.0:
         err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
         err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
         err = max(err_u,err_phi)
-        
+        print 'err_u', err_u
+	print 'err_phi', err_phi
+
         uold.assign(unew)
         pold.assign(pnew)
         Hold.assign(project(psi(unew), WW))
