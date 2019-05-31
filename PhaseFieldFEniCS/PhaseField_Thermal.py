@@ -102,7 +102,9 @@ bc_phi = [DirichletBC(V, Constant(0.0), right)]
 bc_T_top = DirichletBC(V, Constant(300.0), top)
 bc_T_bot = DirichletBC(V, Constant(300.0), bot)
 bc_T_left = DirichletBC(V, Constant(300.0), left)
-bc_T = [bc_T_top, bc_T_bot, bc_T_left]
+bc_T_right = DirichletBC(V, Constant(300.0), right)
+
+bc_T = [bc_T_top, bc_T_bot, bc_T_left, bc_T_right]
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
