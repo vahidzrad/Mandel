@@ -18,7 +18,7 @@ L = 50.0	# Width: mm (Chu 2017-3.3)
 H = 9.8		# Height: mm (Chu 2017-3.3)
 
 subdir = "meshes/"
-meshname= # "fracking_hsize%g" % (hsize)
+meshname = "mesh" # "fracking_hsize%g" % (hsize)
 
 #mesh = Mesh('mesh.xml')
 mesh = Mesh(subdir + meshname + ".xml")
@@ -34,7 +34,7 @@ d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
 # Introduce manually the material parameters
-E = 380e6		# Young's modulus: MPa (Chu 2017-4.1)
+E = 380.0e6		# Young's modulus: MPa (Chu 2017-4.1)
 nu = 0.25		# Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		# critical energy release rate: MPa-mm (Chu 2017-4.1)
 
@@ -50,33 +50,42 @@ mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
 rho = 3.9e-6						# density: kg/m^3 (Chu 2017-4.1)
 
 alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
-kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
+# kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
 
 c = Constant(961.5e6)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
-k0 = Constant(21.e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
+k0 = Constant(21.0e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
 deltaT = rho * c * height**2 / k			# source: (Chu2017-3.3)
 print('DeltaT', deltaT)
 
 # Constituive functions
-def epsilon(u):
-    return sym(grad(u))
-def sigma(u):
-    return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
-def sigma(u, dT):
-    return (lmbda*tr(epsilon(u)) - kappa*dT)*Identity(2) + 2*mu*epsilon(u)
+# strain
+def epsilon(u_):
+	return sym(grad(u_))
 
-def psi(u):
-    return 0.5*(lmbda+mu)*(0.5*(tr(epsilon(u))+abs(tr(epsilon(u)))))**2+\
-           mu*inner(dev(epsilon(u)),dev(epsilon(u)))		
-def H(uold,unew,Hold):
-    return conditional(lt(psi(uold),psi(unew)),psi(unew),Hold)
+def epsilonT(u_, T_):
+	return alpha * (T_ - Ts) * Identity(len(u_))
+
+def epsilone(u_, T_):
+	return epsilon(u_) - epsilonT(u_, T_)
+
+# stress
+def sigma(u_): # not applicable
+	return lmbda * tr(epsilon(u_)) * Identity(len(u_)) + 2.0 * mu * epsilon(u_)
+
+def sigma(u_, T_): # no decomposition
+	return lmbda * tr(epsilone(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilone(u_, T_))
+
+def sigmap(u_, T_): # sigma_+ for Amor's model
+	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
+		+ 2 * mu * dev(epsilone(u_, T_))
+def sigman(u_, T_): # sigma_- for Amor's model
+	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
 		
 # Boundary conditions
-top = CompiledSubDomain("near(x[1], 4.9) && on_boundary")
-bot = CompiledSubDomain("near(x[1], -4.9) && on_boundary")
-left = CompiledSubDomain("near(x[0], -25.) && on_boundary")
-right = CompiledSubDomain("near(x[0], 25.) && on_boundary")
-
+top = CompiledSubDomain("near(x[1], H/2.) && on_boundary")
+bot = CompiledSubDomain("near(x[1], -H/2.) && on_boundary")
+left = CompiledSubDomain("near(x[0], -L) && on_boundary")
+right = CompiledSubDomain("near(x[0], L) && on_boundary")
 
 class Pinpoint(SubDomain):
     TOL = 1e-3
@@ -92,25 +101,25 @@ class Pinpoint(SubDomain):
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
 
-
 def Crack(x):
     return abs(x[1]) < 1e-03 and x[0] <= 0.0
 
 load = Expression("t", t = 0.0, degree=1)
 
-bc_u_bot= DirichletBC(W, Constant((0.0,0.0)), bot)
-bc_u_top = DirichletBC(W.sub(1), load, top)
-bc_u_pt_l = DirichletBC(W, Constant([0.,0.]), pinpoint_l, method='pointwise')
-bc_u_pt_r = DirichletBC(W, Constant([0.,0.]), pinpoint_r, method='pointwise')
-bc_u = [bc_u_pt_l, bc_u_pt_r]
+# Boundary conditions for u
+bc_u_bot= DirichletBC(V_u, Constant((0.0,0.0)), bot)
+bc_u_top = DirichletBC(V_u.sub(1), load, top)
+bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
+bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
+bc_u = [bc_u_pt_left, bc_u_pt_right]
 
-bc_phi = [DirichletBC(V, Constant(0.0), right)]
+# bc_phi = [DirichletBC(V_d, Constant(0.0), right)]
 
-bc_T_top = DirichletBC(V, Constant(300.0), top)
-bc_T_bot = DirichletBC(V, Constant(300.0), bot)
-bc_T_left = DirichletBC(V, Constant(300.0), left)
-bc_T_right = DirichletBC(V, Constant(300.0), right)
-
+# Boundary conditions for T
+bc_T_top = DirichletBC(V_d, Tw, top) # Vahid: Tw or Ts?
+bc_T_bot = DirichletBC(V_d, Tw, bot)
+bc_T_left = DirichletBC(V_d, Tw, left)
+bc_T_right = DirichletBC(V_d, Tw, right)
 bc_T = [bc_T_top, bc_T_bot, bc_T_left, bc_T_right]
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
