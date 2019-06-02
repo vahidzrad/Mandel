@@ -38,7 +38,7 @@ E = 380.0e6		# Young's modulus: MPa (Chu 2017-4.1)
 nu = 0.25		# Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		# critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-l = 0.1			# length scale: mm (Chu 2017-4.1)
+l = 0.4			# length scale: mm (Chu 2017-4.1)
 hsize = l/2.		# mesh size: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017-3.3)
@@ -101,9 +101,6 @@ class Pinpoint(SubDomain):
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
 
-def Crack(x):
-    return abs(x[1]) < 1e-03 and x[0] <= 0.0
-
 load = Expression("t", t = 0.0, degree=1)
 
 # Boundary conditions for u
@@ -129,12 +126,8 @@ ds = Measure("ds")(subdomain_data=boundaries)
 n = FacetNormal(mesh)
 
 # Variational form
-unew, uold = Function(W), Function(W)
-pnew, pold, Hold = Function(V), Function(V), Function(V)	
-Tnew, Told = Function(V), Function(V)
-
 E_u = (1.0-d_)**2 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
-E_d = (3.0/8.0) * ((Gc/l) * d_t + 2 * l * inner(grad(d), grad(d_t)))
+E_d = (3.0/8.0) * ((Gc/l) * d_t * dx + 2 * l * inner(grad(d), grad(d_t)) * dx)
 
 T0 = project(Ts, V_d)
 E_T = (1.0 - d_) * rho * c * (T_ - T0) / deltaT * T_t * dx - (1.0 - d_) * k * inner(grad(T), grad(T_t)) * dx
@@ -153,8 +146,8 @@ u_r = 0.007
 u_T = 1.
 #deltaT  = 0.1
 tol = 1e-3
-conc_f = File ("./ResultsDir/phi.pvd")
-conc_T = File ("./ResultsDir/Temp.pvd")
+conc_d = File ("./ResultsDir/d.pvd")
+conc_T = File ("./ResultsDir/T.pvd")
 
 fname = open('ForcevsDisp.txt', 'w')
 
@@ -173,8 +166,6 @@ while t<=1.0:
         solver_phi.solve()
         solver_T.solve() 
 
-	
-
         err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
         err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
         err_T = errornorm(Tnew,Told,norm_type = 'l2',mesh = None)
@@ -190,18 +181,16 @@ while t<=1.0:
         Hold.assign(project(psi(unew), WW))
 
         if err < tol:
-		
-            print ('Iterations:', iter, ', Total time', t)
+		print ('Iterations:', iter, ', Total time', t)
+		if round(t*1e4) % 10 == 0:
+                	conc_d << d_ 
+	                conc_T << T_
+	
+        	        Traction = dot(sigma(u_, T_), n)
+                	fy = Traction[1]*ds(1)
+				
+	                fname.write(str(t*u_r) + "\t")
+        	        fname.write(str(assemble(fy)) + "\n")
 
-            if round(t*1e4) % 10 == 0:
-                conc_f << pnew 
-                conc_T << Tnew
-
-
-                Traction = dot(sigma(unew, Told),n)
-                fy = Traction[1]*ds(1)
-                fname.write(str(t*u_r) + "\t")
-                fname.write(str(assemble(fy)) + "\n")
-	    	    
 fname.close()
 print ('Simulation completed')
