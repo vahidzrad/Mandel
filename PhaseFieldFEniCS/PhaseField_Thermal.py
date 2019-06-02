@@ -53,7 +53,7 @@ alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
 # kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
 
 c = Constant(961.5e6)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
-k0 = Constant(21.0e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
+k = Constant(21.0e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
 deltaT = rho * c * height**2 / k			# source: (Chu2017-3.3)
 print('DeltaT', deltaT)
 
@@ -113,7 +113,7 @@ bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
 bc_u = [bc_u_pt_left, bc_u_pt_right]
 
-# bc_phi = [DirichletBC(V_d, Constant(0.0), right)]
+bc_d = [DirichletBC(V_d, Constant(0.0), right)]
 
 # Boundary conditions for T
 bc_T_top = DirichletBC(V_d, Tw, top) # Vahid: Tw or Ts?
@@ -137,7 +137,7 @@ E_u = (1.0-d_)**2 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(
 E_d = (3.0/8.0) * ((Gc/l) * d_t + 2 * l * inner(grad(d), grad(d_t)))
 
 T0 = project(Ts, V_d)
-E_T = (cV*(dT-Told)/deltaT*T_ +  dot(k*grad(dT), grad(T_)))*dx
+E_T = (1.0 - d_) * rho * c * (T_ - T0) / deltaT * T_t * dx - (1.0 - d_) * k * inner(grad(T), grad(T_t)) * dx
 	
 problem_u = LinearVariationalProblem(lhs(E_u), rhs(E_u), u_, bc_u)
 problem_d = LinearVariationalProblem(lhs(E_d), rhs(E_d), d_, bc_d)
@@ -165,7 +165,7 @@ while t<=1.0:
     #    deltaT = deltaT #0.0001 #Edited by Mostafa
     load.t=t*u_T
     iter = 0
-    err = 1
+    err = 1.0
 
     while err > tol:
         iter += 1
@@ -204,4 +204,4 @@ while t<=1.0:
                 fname.write(str(assemble(fy)) + "\n")
 	    	    
 fname.close()
-print ('Simulation completed') 
+print ('Simulation completed')
