@@ -14,20 +14,24 @@
 from dolfin import *
 import numpy as np
 
-hsize=0.8
-L = 50.
+hsize = 0.8
+L = 50.0
 H = 9.8
 
+subdir = "meshes/"
+meshname="fracking_hsize%g" % (hsize)
+mesh = Mesh(subdir + meshname + ".xml")
+
 #mesh = Mesh('mesh.xml')
-mesh = Mesh('meshes/fracking_hsize'+str(float(hsize))+'.xml')
-mesh_fun = MeshFunction("size_t", mesh,"meshes/fracking_hsize"+str(float(hsize))+"_facet_region.xml")
+#mesh = Mesh('meshes/fracking_hsize'+str(float(hsize))+'.xml')
+mesh_fun = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
 
 # Define Space
 V = FunctionSpace(mesh, 'CG', 1)
 W = VectorFunctionSpace(mesh, 'CG', 1)
-WW = FunctionSpace(mesh, 'DG', 0)
-p, q = TrialFunction(V), TestFunction(V)
+WW = FunctionSpace(mesh, 'DG', 1)
 
+p, q = TrialFunction(V), TestFunction(V)
 dT, T_ = TrialFunction(V), TestFunction(V)
 u, v = TrialFunction(W), TestFunction(W)
 
