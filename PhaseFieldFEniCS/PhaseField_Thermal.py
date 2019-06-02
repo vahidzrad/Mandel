@@ -150,7 +150,7 @@ solver_T = LinearVariationalSolver(problem_T)
 t = 0
 u_r = 0.007
 u_T = 1.
-#deltaT  = 0.1
+
 tol = 1e-3
 conc_d = File ("./ResultsDir/d.pvd")
 conc_T = File ("./ResultsDir/T.pvd")
@@ -172,9 +172,9 @@ while t<=1.0:
         solver_d.solve()
         solver_T.solve() 
 
-        err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
-        err_d = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
-        err_T = errornorm(Tnew,Told,norm_type = 'l2',mesh = None)
+        err_u = errornorm(u_, uold, norm_type = 'l2', mesh = None)
+        err_d = errornorm(d_, pold, norm_type = 'l2', mesh = None)
+        err_T = errornorm(T_, Told, norm_type = 'l2', mesh = None)
 	
         err = max(err_u, err_d, err_T)
         print('err_u: ', err_u)
@@ -182,9 +182,8 @@ while t<=1.0:
         print('err_T: ', err_T)
 
         uold.assign(u_)
-        pold.assign(pnew)
-        Told.assign(Tnew)
-        Hold.assign(project(psi(unew), WW))
+        pold.assign(d_)
+        Told.assign(T_)
 
         if err < tol:
 		print ('Iterations:', iter, ', Total time', t)
