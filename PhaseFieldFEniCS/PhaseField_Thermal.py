@@ -15,8 +15,8 @@ from dolfin import *
 import numpy as np
 
 hsize = 0.8	# mesh size: mm
-L = 50.0	# Length: mm
-H = 9.8		# Height: mm
+L = 50.0	# Width: mm (Chu 2017)
+H = 9.8		# Height: mm (Chu 2017)
 
 subdir = "meshes/"
 meshname="fracking_hsize%g" % (hsize)
@@ -28,24 +28,26 @@ mesh_fun = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
 # Define Space
 V_u = VectorFunctionSpace(mesh, 'CG', 1)
 V_d = FunctionSpace(mesh, 'CG', 1)
-# WW = FunctionSpace(mesh, 'DG', 0)
+#WW = FunctionSpace(mesh, 'DG', 0)
 
 u_, u, u_t = Funciton(V_u), TrialFunction(V_u), TestFunction(V_u)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
 # Introduce manually the material parameters
-Gc =  42.47e3		# critical energy release rate: MPa-mm
+Gc = 42.47e3		# critical energy release rate: MPa-mm
 l = 4*hsize		# length scale: mm
 
-T0 = Constant(680.)  	# initial temperature
-E = 340e3		# Young's modulus: MPa
-nu = 0.22		# Poisson's ratio
+Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017)
+Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017)
+
+E = 340e3		# Young's modulus: MPa (Chu 2017)
+nu = 0.22		# Poisson's ratio: - (Chu 2017)
 
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa
-mu = Constant(E/2/(1+nu)) 				# shear modulus: MPa
+mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa
 
-rho = 2700.e-9						# density: kg/m^3
+rho = 2700.						# density: kg/m^3
 
 alpha = Constant(8.0e-6)				# thermal expansion coefficient: 1/K
 kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
