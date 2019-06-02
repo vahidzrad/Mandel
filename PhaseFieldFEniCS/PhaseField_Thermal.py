@@ -14,12 +14,11 @@
 from dolfin import *
 import numpy as np
 
-hsize = 0.8	# mesh size: mm
 L = 50.0	# Width: mm (Chu 2017)
 H = 9.8		# Height: mm (Chu 2017)
 
 subdir = "meshes/"
-meshname="fracking_hsize%g" % (hsize)
+meshname= # "fracking_hsize%g" % (hsize)
 
 #mesh = Mesh('mesh.xml')
 mesh = Mesh(subdir + meshname + ".xml")
@@ -35,14 +34,15 @@ d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
 # Introduce manually the material parameters
-Gc = 42.47e3		# critical energy release rate: MPa-mm
-l = 4*hsize		# length scale: mm
+E = 340e3		# Young's modulus: MPa (Chu 2017)
+nu = 0.22		# Poisson's ratio: - (Chu 2017)
+Gc = 42.47e-3		# critical energy release rate: MPa-mm (Chu 2017)
+
+l = 0.092		# length scale: mm (Chu 2017)
+hsize = l/4.		# mesh size: mm (Chu 2017)
 
 Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017)
 Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017)
-
-E = 340e3		# Young's modulus: MPa (Chu 2017)
-nu = 0.22		# Poisson's ratio: - (Chu 2017)
 
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa
 mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa
