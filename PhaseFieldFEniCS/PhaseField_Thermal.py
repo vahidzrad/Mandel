@@ -134,8 +134,9 @@ pnew, pold, Hold = Function(V), Function(V), Function(V)
 Tnew, Told = Function(V), Function(V)
 Told = project(T0, V)
 
-E_du = ((1.0-pold)**2)*inner(grad(v),sigma(u, Told))*dx
-E_phi = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
+# Done until here
+E_u = (1.0-d_)**2 * inner(sigmap(u_, T_), epsilon(u_, T_)) * dx
+E_d = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
             *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
 		
 E_T = (cV*(dT-Told)/deltaT*T_ +  dot(k*grad(dT), grad(T_)))*dx
