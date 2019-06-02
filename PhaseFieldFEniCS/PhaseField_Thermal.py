@@ -81,6 +81,9 @@ def sigman(u_, T_): # sigma_- for Amor's model
     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
 
 # strain energy
+def psi(u_, T_):
+    return lmbda/2.0 * tr(epsilone(u_, T_))**2 + mu * inner(epsilone(u_, T_), epsilone(u_, T_))
+
 def psip(u_, T_):
     return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2 \
     + mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
@@ -130,10 +133,10 @@ ds = Measure("ds")(subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
 # Variational form
-E_u = (1.0-d_)**2.0 * inner(sigmap(u, T_), epsilone(u_t, T_)) * dx + inner(sigman(u, T_), epsilone(u_t, T_)) * dx
+E_u = (1.0-d_)**2.0 * inner(sigma(u, T_), epsilone(u_t, T_)) * dx + inner(sigma(u, T_), epsilone(u_t, T_)) * dx
 
 d0 = interpolate(Constant(0.0), V_d)
-E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
+E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psi(u_, T_) * d_t * dx
 
 # T0 = project(Ts, V_d)
 T0 = interpolate(Expression('T_int', T_int = Ts, degree=1), V_d)
