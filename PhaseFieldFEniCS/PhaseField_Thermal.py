@@ -14,9 +14,9 @@
 from dolfin import *
 import numpy as np
 
-hsize=0.8
-L = 50.
-H = 9.8
+hsize=0.8 #mm
+L = 50. #mm
+H = 9.8 #mm
 
 #mesh = Mesh('mesh.xml')
 mesh = Mesh('meshes/fracking_hsize'+str(float(hsize))+'.xml')
@@ -33,7 +33,7 @@ u, v = TrialFunction(W), TestFunction(W)
 
 # Introduce manually the material parameters
 Gc =  42.47e3  # MPa.mm      Hint: J/m^2=1e-3 MPa.mm
-l = 4*hsize
+l = 4*hsize #mm
 #lmbda = 121.1538e3
 #mu = 80.7692e3
 
@@ -41,20 +41,23 @@ T0 = Constant(680.)
 E = 340e3 #MPa
 nu = 0.22
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))
-mu = Constant(E/2/(1+nu)) 
-rho = 2700.e-9     # density #kg/mm^3
+mu = Constant(E/(2*(1+nu))) 
+rho = 2700.     # density #kg/mm^3
 alpha = Constant(8.0e-6) # thermal expansion coefficient #K^-1
 kappa  = Constant(alpha*(2*mu + 3*lmbda)) 
 cV = Constant(961.5e3)*rho # specific heat per unit volume at constant strain #J/(kgK)= 1e3 MPa*mm^3/(kgK)
 k = Constant(6.)  # thermal conductivity #W/(mK)=J/(mKs)= MPa*mm^2/(Ks).
+
 deltaT  = hsize**2 * rho*cV/k
 print('DeltaT', deltaT)
 
 # Constituive functions
 def epsilon(u):
-    return sym(grad(u))
-#def sigma(u):
-#    return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
+	return sym(grad(u))
+def epsilon(u_, T_):
+	return sym(grad(u)) - 
+def sigma(u):
+	return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
 def sigma(u, dT):
     return (lmbda*tr(epsilon(u)) - kappa*dT)*Identity(2) + 2*mu*epsilon(u)
 
