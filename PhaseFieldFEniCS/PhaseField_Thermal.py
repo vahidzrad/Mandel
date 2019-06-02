@@ -130,7 +130,7 @@ ds = Measure("ds")(subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
 # Variational form
-E_u = (1.0-d_)**2.0 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
+E_u = (1.0-d_)**2.0 * inner(sigmap(u, T_), epsilone(u_t, T_)) * dx + inner(sigman(u, T_), epsilone(u_t, T_)) * dx
 
 d0 = interpolate(Constant(0.0), V_d)
 E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
@@ -154,10 +154,6 @@ n_step = 100
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
-t = 0
-u_r = 0.007
-u_T = 1.
-
 tol = 1e-3
 conc_d = File ("./ResultsDir/d.pvd")
 conc_T = File ("./ResultsDir/T.pvd")
@@ -166,7 +162,6 @@ conc_T = File ("./ResultsDir/T.pvd")
 
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
-    load.t = t*u_T
 
     iter = 0
     err = 1.0
@@ -181,8 +176,8 @@ for (i_p, p) in enumerate(load_multipliers):
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
         err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
     
-        err = max(err_u, err_d, err_T)
-        print('err_u: ', err_u)
+        err = max(err_d, err_T)
+        # print('err_u: ', err_u)
         print('err_d: ', err_d)
         print('err_T: ', err_T)
 
