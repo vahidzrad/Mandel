@@ -77,7 +77,7 @@ def sigma(u_, T_): # no decomposition
 
 def sigmap(u_, T_): # sigma_+ for Amor's model
 	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
-		+ 2 * mu * dev(epsilone(u_, T_))
+		+ 2.0 * mu * dev(epsilone(u_, T_))
 def sigman(u_, T_): # sigma_- for Amor's model
 	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
 		
@@ -132,22 +132,20 @@ n = FacetNormal(mesh)
 unew, uold = Function(W), Function(W)
 pnew, pold, Hold = Function(V), Function(V), Function(V)	
 Tnew, Told = Function(V), Function(V)
-Told = project(T0, V)
 
-# Done until here
-E_u = (1.0-d_)**2 * inner(sigmap(u_, T_), epsilon(u_, T_)) * dx
-E_d = (Gc*l*inner(grad(p),grad(q))+((Gc/l)+2.0*H(uold,unew,Hold))\
-            *inner(p,q)-2.0*H(uold,unew,Hold)*q)*dx
-		
+E_u = (1.0-d_)**2 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
+E_d = (3.0/8.0) * ((Gc/l) * d_t + 2 * l * inner(grad(d), grad(d_t)))
+
+T0 = project(Ts, V_d)
 E_T = (cV*(dT-Told)/deltaT*T_ +  dot(k*grad(dT), grad(T_)))*dx
 	
-p_disp = LinearVariationalProblem(lhs(E_du), rhs(E_du), unew, bc_u)
-p_phi = LinearVariationalProblem(lhs(E_phi), rhs(E_phi), pnew, bc_phi)
-solver_disp = LinearVariationalSolver(p_disp)
-solver_phi = LinearVariationalSolver(p_phi)
-		
-p_T = LinearVariationalProblem(lhs(E_T), rhs(E_T), Tnew, bc_T)
-solver_T = LinearVariationalSolver(p_T)
+problem_u = LinearVariationalProblem(lhs(E_u), rhs(E_u), u_, bc_u)
+problem_d = LinearVariationalProblem(lhs(E_d), rhs(E_d), d_, bc_d)
+solver_u = LinearVariationalSolver(problem_u)
+solver_d = LinearVariationalSolver(problem_d)
+
+problem_T = LinearVariationalProblem(lhs(E_T), rhs(E_T), T_, bc_T)
+solver_T = LinearVariationalSolver(problem_T)
 
 # Initialization of the iterative procedure and output requests
 t = 0
