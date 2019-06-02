@@ -34,9 +34,9 @@ d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
 # Introduce manually the material parameters
-E = 380e3		# Young's modulus: MPa (Chu 2017-4.1)
+E = 380e6		# Young's modulus: MPa (Chu 2017-4.1)
 nu = 0.25		# Poisson's ratio: - (Chu 2017-4.1)
-Gc = 26.95e-3		# critical energy release rate: MPa-mm (Chu 2017-4.1)
+Gc = 26.95		# critical energy release rate: MPa-mm (Chu 2017-4.1)
 
 l = 0.1			# length scale: mm (Chu 2017-4.1)
 hsize = l/2.		# mesh size: mm (Chu 2017-4.1)
@@ -52,16 +52,16 @@ rho = 3.9e-6						# density: kg/m^3 (Chu 2017-4.1)
 alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
 kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
 
-c = Constant(961.5)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
-k0 = Constant(21.)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
-deltaT = rho *c * height**2/k				# source: (Chu2017-3.3)
+c = Constant(961.5e6)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
+k0 = Constant(21.e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
+deltaT = rho * c * height**2 / k			# source: (Chu2017-3.3)
 print('DeltaT', deltaT)
 
 # Constituive functions
 def epsilon(u):
     return sym(grad(u))
-#def sigma(u):
-#    return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
+def sigma(u):
+    return 2.0*mu*epsilon(u)+lmbda*tr(epsilon(u))*Identity(len(u))
 def sigma(u, dT):
     return (lmbda*tr(epsilon(u)) - kappa*dT)*Identity(2) + 2*mu*epsilon(u)
 
