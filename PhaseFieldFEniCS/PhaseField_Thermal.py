@@ -22,14 +22,14 @@ meshname = "mesh" # "fracking_hsize%g" % (hsize)
 
 #mesh = Mesh('mesh.xml')
 mesh = Mesh(subdir + meshname + ".xml")
-mesh_fun = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
+# mesh_fun = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
 
 # Define Space
 V_u = VectorFunctionSpace(mesh, 'CG', 1)
 V_d = FunctionSpace(mesh, 'CG', 1)
 #WW = FunctionSpace(mesh, 'DG', 0)
 
-u_, u, u_t = Funciton(V_u), TrialFunction(V_u), TestFunction(V_u)
+u_, u, u_t = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
@@ -59,37 +59,37 @@ print('DeltaT', deltaT)
 # Constituive functions
 # strain
 def epsilon(u_):
-	return sym(grad(u_))
+    return sym(grad(u_))
 
 def epsilonT(u_, T_):
-	return alpha * (T_ - Ts) * Identity(len(u_))
+    return alpha * (T_ - Ts) * Identity(len(u_))
 
 def epsilone(u_, T_):
-	return epsilon(u_) - epsilonT(u_, T_)
+    return epsilon(u_) - epsilonT(u_, T_)
 
 # stress
 def sigma(u_): # not applicable
-	return lmbda * tr(epsilon(u_)) * Identity(len(u_)) + 2.0 * mu * epsilon(u_)
+    return lmbda * tr(epsilon(u_)) * Identity(len(u_)) + 2.0 * mu * epsilon(u_)
 
 def sigma(u_, T_): # no decomposition
-	return lmbda * tr(epsilone(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilone(u_, T_))
+    return lmbda * tr(epsilone(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilone(u_, T_))
 
 def sigmap(u_, T_): # sigma_+ for Amor's model
-	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
-	+ 2.0 * mu * dev(epsilone(u_, T_))
+    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
+    + 2.0 * mu * dev(epsilone(u_, T_))
 def sigman(u_, T_): # sigma_- for Amor's model
-	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
+    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
 
 # strain energy
 def psip(u_, T_):
-	return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2 \
-	+ mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2 \
+    + mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
 
 # Boundary conditions
-top = CompiledSubDomain("near(x[1], H/2.) && on_boundary")
-bot = CompiledSubDomain("near(x[1], -H/2.) && on_boundary")
-left = CompiledSubDomain("near(x[0], -L) && on_boundary")
-right = CompiledSubDomain("near(x[0], L) && on_boundary")
+top = CompiledSubDomain("near(x[1], 4.9) && on_boundary")
+bot = CompiledSubDomain("near(x[1], -4.9) && on_boundary")
+left = CompiledSubDomain("near(x[0], -25.0) && on_boundary")
+right = CompiledSubDomain("near(x[0], 25.0) && on_boundary")
 
 class Pinpoint(SubDomain):
     TOL = 1e-3
@@ -180,7 +180,7 @@ for (i_p, p) in enumerate(load_multipliers):
         # err_u = errornorm(u_, uold, norm_type = 'l2', mesh = None)
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
         err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
-	
+    
         err = max(err_u, err_d, err_T)
         print('err_u: ', err_u)
         print('err_d: ', err_d)
@@ -191,15 +191,15 @@ for (i_p, p) in enumerate(load_multipliers):
         T0.assign(T_)
 
         if err < tol:
-		print ('Iterations:', iter, ', Total time', p)
-                conc_d << d_
-		conc_T << T_
-	
-   		# Traction = dot(sigma(u_, T_), n)
-		# fy = Traction[1]*ds(1)
-				
-		# fname.write(str(p*u_r) + "\t")
-		# fname.write(str(assemble(fy)) + "\n")
+            print ('Iterations:', iter, ', Total time', p)
+            conc_d << d_
+            conc_T << T_
+    
+        # Traction = dot(sigma(u_, T_), n)
+        # fy = Traction[1]*ds(1)
+        
+        # fname.write(str(p*u_r) + "\t")
+        # fname.write(str(assemble(fy)) + "\n")
 
 # fname.close()
 print ('Simulation completed')

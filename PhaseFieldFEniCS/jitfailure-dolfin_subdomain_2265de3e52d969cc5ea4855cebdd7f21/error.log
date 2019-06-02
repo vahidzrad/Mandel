@@ -1,0 +1,4 @@
+/tmp/tmp54kfonls/dolfin_subdomain_2265de3e52d969cc5ea4855cebdd7f21.cpp: In member function ‘virtual bool dolfin::dolfin_subdomain_2265de3e52d969cc5ea4855cebdd7f21::inside(Eigen::Ref<const Eigen::Matrix<double, -1, 1> >, bool) const’:
+/tmp/tmp54kfonls/dolfin_subdomain_2265de3e52d969cc5ea4855cebdd7f21.cpp:63:28: error: ‘H’ was not declared in this scope
+          return near(x[1], H/2.) && on_boundary;
+                            ^
