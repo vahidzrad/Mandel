@@ -14,41 +14,42 @@
 from dolfin import *
 import numpy as np
 
-hsize = 0.8
-L = 50.0
-H = 9.8
+hsize = 0.8	# mesh size: mm
+L = 50.0	# Length: mm
+H = 9.8		# Height: mm
 
 subdir = "meshes/"
 meshname="fracking_hsize%g" % (hsize)
-mesh = Mesh(subdir + meshname + ".xml")
 
 #mesh = Mesh('mesh.xml')
-#mesh = Mesh('meshes/fracking_hsize'+str(float(hsize))+'.xml')
+mesh = Mesh(subdir + meshname + ".xml")
 mesh_fun = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
 
 # Define Space
-V = FunctionSpace(mesh, 'CG', 1)
-W = VectorFunctionSpace(mesh, 'CG', 1)
-WW = FunctionSpace(mesh, 'DG', 1)
+V_u = VectorFunctionSpace(mesh, 'CG', 1)
+V_d = FunctionSpace(mesh, 'CG', 1)
+# WW = FunctionSpace(mesh, 'DG', 0)
 
-p, q = TrialFunction(V), TestFunction(V)
-dT, T_ = TrialFunction(V), TestFunction(V)
-u, v = TrialFunction(W), TestFunction(W)
+u_, u, u_t = Funciton(V_u), TrialFunction(V_u), TestFunction(V_u)
+d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
+T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
 # Introduce manually the material parameters
-Gc =  42.47e3  # MPa.mm      Hint: J/m^2=1e-3 MPa.mm
-l = 4*hsize
-#lmbda = 121.1538e3
-#mu = 80.7692e3
+Gc =  42.47e3		# critical energy release rate: MPa-mm
+l = 4*hsize		# length scale: mm
 
-T0 = Constant(680.)  
-E = 340e3 #MPa
-nu = 0.22
-lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))
-mu = Constant(E/2/(1+nu)) 
-rho = 2700.e-9     # density #kg/mm^3
-alpha = Constant(8.0e-6) # thermal expansion coefficient #K^-1
-kappa  = Constant(alpha*(2*mu + 3*lmbda)) 
+T0 = Constant(680.)  	# initial temperature
+E = 340e3		# Young's modulus: MPa
+nu = 0.22		# Poisson's ratio
+
+lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa
+mu = Constant(E/2/(1+nu)) 				# shear modulus: MPa
+
+rho = 2700.e-9						# density: kg/m^3
+
+alpha = Constant(8.0e-6)				# thermal expansion coefficient: 1/K
+kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
+
 cV = Constant(961.5e3)*rho # specific heat per unit volume at constant strain #J/(kgK)= 1e3 MPa*mm^3/(kgK)
 k = Constant(6.)  # thermal conductivity #W/(mK)=J/(mKs)= MPa*mm^2/(Ks).
 deltaT  = hsize**2 * rho*cV/k
