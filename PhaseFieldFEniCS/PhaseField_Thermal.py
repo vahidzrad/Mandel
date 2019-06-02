@@ -47,7 +47,7 @@ Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017-3
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
 mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
 
-rho = 3900.						# density: kg/m^3 (Chu 2017-4.1)
+rho = 3.9e-6						# density: kg/m^3 (Chu 2017-4.1)
 
 alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
 kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
