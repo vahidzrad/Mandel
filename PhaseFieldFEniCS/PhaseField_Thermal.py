@@ -126,11 +126,13 @@ bc_T = [bc_T_top, bc_T_bot, bc_T_left, bc_T_right]
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
 top.mark(boundaries,1)
-ds = Measure("ds")(subdomain_data=boundaries)
+ds = Measure("ds")(subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
 # Variational form
 E_u = (1.0-d_)**2.0 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
+
+d0 = interpolate(Constant(0.0), V_d)
 E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
 
 # T0 = project(Ts, V_d)
@@ -150,6 +152,7 @@ min_step = 0
 max_step = 1
 n_step = 100
 load_multipliers = np.linspace(min_step, max_step, n_step)
+max_iterations = 100
 
 t = 0
 u_r = 0.007
@@ -163,28 +166,29 @@ conc_T = File ("./ResultsDir/T.pvd")
 
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
-    load.t=t*u_T
+    load.t = t*u_T
+
     iter = 0
     err = 1.0
 
-    while err > tol:
+    while err > tol and iter < max_iterations:
         iter += 1
         solver_u.solve()
         solver_d.solve()
         solver_T.solve() 
 
-        err_u = errornorm(u_, uold, norm_type = 'l2', mesh = None)
-        err_d = errornorm(d_, pold, norm_type = 'l2', mesh = None)
-        err_T = errornorm(T_, Told, norm_type = 'l2', mesh = None)
+        # err_u = errornorm(u_, uold, norm_type = 'l2', mesh = None)
+        err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
+        err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
 	
         err = max(err_u, err_d, err_T)
         print('err_u: ', err_u)
         print('err_d: ', err_d)
         print('err_T: ', err_T)
 
-        uold.assign(u_)
-        pold.assign(d_)
-        Told.assign(T_)
+        # u0.assign(u_)
+        d0.assign(d_)
+        T0.assign(T_)
 
         if err < tol:
 		print ('Iterations:', iter, ', Total time', p)
