@@ -80,7 +80,12 @@ def sigmap(u_, T_): # sigma_+ for Amor's model
 		+ 2.0 * mu * dev(epsilone(u_, T_))
 def sigman(u_, T_): # sigma_- for Amor's model
 	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
-		
+
+# strain energy
+def psip(u_, T_):
+	return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2\
+	+ mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
+
 # Boundary conditions
 top = CompiledSubDomain("near(x[1], H/2.) && on_boundary")
 bot = CompiledSubDomain("near(x[1], -H/2.) && on_boundary")
@@ -126,12 +131,12 @@ ds = Measure("ds")(subdomain_data=boundaries)
 n = FacetNormal(mesh)
 
 # Variational form
-E_u = (1.0-d_)**2 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
-E_d = (3.0/8.0) * ((Gc/l) * d_t * dx + 2 * l * inner(grad(d), grad(d_t)) * dx)
+E_u = (1.0-d_)**2.0 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
+E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
 
 # T0 = project(Ts, V_d)
 T0 = interpolate(Expression('T_int', T_int = Ts, degree=1), V_d)
-E_T = (1.0 - d_) * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_) * k * inner(grad(T), grad(T_t)) * dx
+E_T = (1.0 - d_)**2 * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_)**2 * k * inner(grad(T), grad(T_t)) * dx
 
 problem_u = LinearVariationalProblem(lhs(E_u), rhs(E_u), u_, bc_u)
 problem_d = LinearVariationalProblem(lhs(E_d), rhs(E_d), d_, bc_d)
@@ -163,20 +168,20 @@ while t<=1.0:
 
     while err > tol:
         iter += 1
-        solver_disp.solve()
-        solver_phi.solve()
+        solver_u.solve()
+        solver_d.solve()
         solver_T.solve() 
 
         err_u = errornorm(unew,uold,norm_type = 'l2',mesh = None)
-        err_phi = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
+        err_d = errornorm(pnew,pold,norm_type = 'l2',mesh = None)
         err_T = errornorm(Tnew,Told,norm_type = 'l2',mesh = None)
 	
-        err = max(err_u,err_phi, err_T)
-        print('err_u', err_u)
-        print('err_phi', err_phi)
-        print('err_T', err_T)
+        err = max(err_u, err_d, err_T)
+        print('err_u: ', err_u)
+        print('err_d: ', err_d)
+        print('err_T: ', err_T)
 
-        uold.assign(unew)
+        uold.assign(u_)
         pold.assign(pnew)
         Told.assign(Tnew)
         Hold.assign(project(psi(unew), WW))
