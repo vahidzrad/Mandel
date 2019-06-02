@@ -14,29 +14,29 @@ from dolfin_utils.meshconvert import meshconvert
 #=======================================================================================
 # Input date
 #=======================================================================================
-hsize=0.01
+hsize=0.2
 
 #=======================================================================================
 # Geometry and mesh generation
 #=======================================================================================
-meshname="fracking_hsize%g" % (hsize)
+meshname="mesh"
 
 # Generate a XDMF/HDF5 based mesh from a Gmsh string
 geofile = \
         """
             lc = DefineNumber[ %g, Name "Parameters/lc" ];
-            H = 1.;
-            L = 1.;
+            H = 9.8;
+            L = 50.;
 
-            a=0.25;
+            a=10;
 
-            Point(1) = {-L/2, H/2, 0, 5*lc};
-            Point(2) = {L/2, H/2, 0, 5*lc};
-            Point(3) = {L/2, -H/2, 0, 5*lc};
-            Point(4) = {-L/2, -H/2, 0, 5*lc};
+            Point(1) = {-L/2, H/2, 0, 1*lc};
+            Point(2) = {L/2, H/2, 0, 1*lc};
+            Point(3) = {L/2, -H/2, 0, 1*lc};
+            Point(4) = {-L/2, -H/2, 0, 1*lc};
 
-            Point(5) = {-a, 0, 0, 0.1*lc};
-            Point(6) = {a, 0, 0, 0.1*lc};
+            // Point(5) = {-a, 0, 0, 1*lc};
+            // Point(6) = {a, 0, 0, 1*lc};
 
 
             Line(1) = {1, 2};
@@ -47,12 +47,12 @@ geofile = \
 
             Plane Surface(30) = {5};
 
-            Line(6) = {5, 6};
-            Line{6} In Surface{30};
+            // Line(6) = {5, 6};
+            // Line{6} In Surface{30};
 
             Physical Surface(1) = {30};
 
-            Physical Line(101) = {6};
+            // Physical Line(101) = {6};
 
 """%(hsize)
 
@@ -106,8 +106,3 @@ else:
         XDMF = XDMFFile(MPI.comm_world, subdir + meshname + ".xdmf")
         
         XDMF.read(_mesh)
-
-
-
-
-
