@@ -129,9 +129,10 @@ n = FacetNormal(mesh)
 E_u = (1.0-d_)**2 * inner(sigmap(u, T), epsilone(u_t, T_t)) * dx + inner(sigman(u, T), epsilone(u_t, T_t)) * dx
 E_d = (3.0/8.0) * ((Gc/l) * d_t * dx + 2 * l * inner(grad(d), grad(d_t)) * dx)
 
-T0 = project(Ts, V_d)
-E_T = (1.0 - d_) * rho * c * (T_ - T0) / deltaT * T_t * dx - (1.0 - d_) * k * inner(grad(T), grad(T_t)) * dx
-	
+# T0 = project(Ts, V_d)
+T0 = interpolate(Expression('T_int', T_int = Ts, degree=1), V_d)
+E_T = (1.0 - d_) * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_) * k * inner(grad(T), grad(T_t)) * dx
+
 problem_u = LinearVariationalProblem(lhs(E_u), rhs(E_u), u_, bc_u)
 problem_d = LinearVariationalProblem(lhs(E_d), rhs(E_d), d_, bc_d)
 solver_u = LinearVariationalSolver(problem_u)
