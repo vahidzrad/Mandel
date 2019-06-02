@@ -14,8 +14,8 @@
 from dolfin import *
 import numpy as np
 
-L = 50.0	# Width: mm (Chu 2017)
-H = 9.8		# Height: mm (Chu 2017)
+L = 50.0	# Width: mm (Chu 2017-3.3)
+H = 9.8		# Height: mm (Chu 2017-3.3)
 
 subdir = "meshes/"
 meshname= # "fracking_hsize%g" % (hsize)
@@ -34,27 +34,27 @@ d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 
 # Introduce manually the material parameters
-E = 340e3		# Young's modulus: MPa (Chu 2017)
-nu = 0.22		# Poisson's ratio: - (Chu 2017)
-Gc = 42.47e-3		# critical energy release rate: MPa-mm (Chu 2017)
+E = 380e3		# Young's modulus: MPa (Chu 2017-4.1)
+nu = 0.25		# Poisson's ratio: - (Chu 2017-4.1)
+Gc = 26.95e-3		# critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-l = 0.092		# length scale: mm (Chu 2017)
-hsize = l/4.		# mesh size: mm (Chu 2017)
+l = 0.1			# length scale: mm (Chu 2017-4.1)
+hsize = l/2.		# mesh size: mm (Chu 2017-4.1)
 
-Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017)
-Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017)
+Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017-3.3)
+Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017-3.3)
 
-lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa
-mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa
+lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
+mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
 
-rho = 2700.						# density: kg/m^3
+rho = 3900.						# density: kg/m^3 (Chu 2017-4.1)
 
-alpha = Constant(8.0e-6)				# thermal expansion coefficient: 1/K
+alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
 kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
 
-cV = Constant(961.5e3)*rho # specific heat per unit volume at constant strain #J/(kgK)= 1e3 MPa*mm^3/(kgK)
-k = Constant(6.)  # thermal conductivity #W/(mK)=J/(mKs)= MPa*mm^2/(Ks).
-deltaT  = hsize**2 * rho*cV/k
+c = Constant(961.5)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
+k0 = Constant(21.)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
+deltaT = rho *c * height**2/k				# source: (Chu2017-3.3)
 print('DeltaT', deltaT)
 
 # Constituive functions
