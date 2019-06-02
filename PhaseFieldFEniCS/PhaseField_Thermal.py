@@ -50,11 +50,10 @@ mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
 rho = 3.9e-6						# density: kg/m^3 (Chu 2017-4.1)
 
 alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
-# kappa  = Constant(alpha*(2*mu + 3*lmbda))		# ?
 
 c = Constant(961.5e6)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
 k = Constant(21.0e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
-deltaT = rho * c * height**2 / k			# source: (Chu2017-3.3)
+deltaT = rho * c * hsize**2 / k				# source: (Chu2017-3.3: hsize vs H?)
 print('DeltaT', deltaT)
 
 # Constituive functions
@@ -77,13 +76,13 @@ def sigma(u_, T_): # no decomposition
 
 def sigmap(u_, T_): # sigma_+ for Amor's model
 	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
-		+ 2.0 * mu * dev(epsilone(u_, T_))
+	+ 2.0 * mu * dev(epsilone(u_, T_))
 def sigman(u_, T_): # sigma_- for Amor's model
 	return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
 
 # strain energy
 def psip(u_, T_):
-	return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2\
+	return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2 \
 	+ mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
 
 # Boundary conditions
@@ -147,6 +146,11 @@ problem_T = LinearVariationalProblem(lhs(E_T), rhs(E_T), T_, bc_T)
 solver_T = LinearVariationalSolver(problem_T)
 
 # Initialization of the iterative procedure and output requests
+min_step = 0
+max_step = 1
+n_step = 100
+load_multipliers = np.linspace(min_step, max_step, n_step)
+
 t = 0
 u_r = 0.007
 u_T = 1.
@@ -155,13 +159,10 @@ tol = 1e-3
 conc_d = File ("./ResultsDir/d.pvd")
 conc_T = File ("./ResultsDir/T.pvd")
 
-fname = open('ForcevsDisp.txt', 'w')
+# fname = open('ForcevsDisp.txt', 'w')
 
 # Staggered scheme
-while t<=1.0:
-    t += deltaT
-    #if t >=0.7:
-    #    deltaT = deltaT #0.0001 #Edited by Mostafa
+for (i_p, p) in enumerate(load_multipliers):
     load.t=t*u_T
     iter = 0
     err = 1.0
@@ -186,16 +187,15 @@ while t<=1.0:
         Told.assign(T_)
 
         if err < tol:
-		print ('Iterations:', iter, ', Total time', t)
-		if round(t*1e4) % 10 == 0:
-                	conc_d << d_ 
-	                conc_T << T_
+		print ('Iterations:', iter, ', Total time', p)
+                conc_d << d_
+		conc_T << T_
 	
-        	        Traction = dot(sigma(u_, T_), n)
-                	fy = Traction[1]*ds(1)
+   		# Traction = dot(sigma(u_, T_), n)
+		# fy = Traction[1]*ds(1)
 				
-	                fname.write(str(t*u_r) + "\t")
-        	        fname.write(str(assemble(fy)) + "\n")
+		# fname.write(str(p*u_r) + "\t")
+		# fname.write(str(assemble(fy)) + "\n")
 
-fname.close()
+# fname.close()
 print ('Simulation completed')
