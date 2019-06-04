@@ -14,6 +14,25 @@
 from dolfin import *
 import numpy as np
 
+set_log_level(20)
+
+# parameters of the nonlinear solver used for the d-problem
+solver_d_parameters={"method", "tron", 			# when using gpcg make sure that you have a constant Hessian
+               "monitor_convergence", True,
+                       #"line_search", "gpcg"
+                       "line_search", "nash"
+                       "preconditioner", "ml_amg"
+               "report", True}
+
+# parameters of the nonlinear solver used for the displacement-problem
+solver_u_parameters ={"linear_solver", "mumps", # prefer "superlu_dist" or "mumps" if available
+            "preconditioner", "default",
+            "report", False,
+            "maximum_iterations", 500,
+            "relative_tolerance", 1e-5,
+            "symmetric", True,
+            "nonlinear_solver", "newton"}
+
 L = 50.0	# Width: mm (Chu 2017-3.3)
 H = 9.8		# Height: mm (Chu 2017-3.3)
 
@@ -42,7 +61,7 @@ l = 0.4			# length scale: mm (Chu 2017-4.1)
 hsize = l/2.		# mesh size: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017-3.3)
-Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017-3.3)
+Tw = Constant(680.)	# temperature of surface contacted with water: K (Chu 2017-3.3)
 
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
 mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
@@ -64,8 +83,11 @@ def epsilon(u_):
 def epsilonT(u_, T_):
     return alpha * (T_ - Ts) * Identity(len(u_))
 
+# def epsilone(u_, t_):
+#     return epsilon(u_) - epsilonT(u_, t_)
+
 def epsilone(u_, T_):
-    return epsilon(u_) - epsilonT(u_, T_)
+    return sym(grad(u_))
 
 # stress
 def sigma(u_): # not applicable
@@ -87,6 +109,9 @@ def psi(u_, T_):
 def psip(u_, T_):
     return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2 \
     + mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
+
+def psin(u_, T_):
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0)**2
 
 # Boundary conditions
 top = CompiledSubDomain("near(x[1], 4.9) && on_boundary")
@@ -115,9 +140,13 @@ bc_u_bot= DirichletBC(V_u, Constant((0.0,0.0)), bot)
 bc_u_top = DirichletBC(V_u.sub(1), load, top)
 bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-bc_u = [bc_u_pt_left, bc_u_pt_right]
+# bc_u = [bc_u_pt_left, bc_u_pt_right]
+bc_u = [bc_u_bot, bc_u_top]
 
-bc_d = [DirichletBC(V_d, Constant(0.0), right)]
+def Crack(x):
+    return abs(x[1]) < 1e-03 and x[0] <= 10.0 and x[0] >= -10.
+
+bc_d = [DirichletBC(V_d, Constant(0.0), right), DirichletBC(V_d, Constant(1.0), Crack)]
 
 # Boundary conditions for T
 bc_T_top = DirichletBC(V_d, Tw, top) # Vahid: Tw or Ts?
@@ -132,28 +161,79 @@ top.mark(boundaries,1)
 ds = Measure("ds")(subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
-# Variational form
-E_u = (1.0-d_)**2.0 * inner(sigma(u, T_), epsilone(u_t, T_)) * dx + inner(sigma(u, T_), epsilone(u_t, T_)) * dx
+# weak form
+# E_u = (1.0-d_)**2.0 * inner(sigmap(u, T_), epsilone(u_t, T_)) * dx + inner(sigman(u, T_), epsilone(u_t, T_)) * dx
+# E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
 
 d0 = interpolate(Constant(0.0), V_d)
-E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psi(u_, T_) * d_t * dx
-
-# T0 = project(Ts, V_d)
 T0 = interpolate(Expression('T_int', T_int = Ts, degree=1), V_d)
-E_T = (1.0 - d_)**2 * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_)**2 * k * inner(grad(T), grad(T_t)) * dx
+# E_T = (1.0 - d_)**2 * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_)**2 * k * inner(grad(T), grad(T_t)) * dx
+E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) / deltaT * T * dx - (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+# E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
+E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
+E_d = (3.0/8.0) * Gc * (d_/l * dx + l * inner(grad(d_), grad(d_)) * dx)
+Pi = E_u + E_d
 
-problem_u = LinearVariationalProblem(lhs(E_u), rhs(E_u), u_, bc_u)
-problem_d = LinearVariationalProblem(lhs(E_d), rhs(E_d), d_, bc_d)
-solver_u = LinearVariationalSolver(problem_u)
-solver_d = LinearVariationalSolver(problem_d)
+Du_Pi = derivative(Pi, u_, u_t)
+J_u = derivative(Du_Pi, u_, u)
+problem_u = NonlinearVariationalProblem(Du_Pi, u_, bc_u, J_u)
+solver_u = NonlinearVariationalSolver(problem_u)
+prm = solver_u.parameters
+prm["newton_solver"]["absolute_tolerance"] = 1E-8
+prm["newton_solver"]["relative_tolerance"] = 1E-7
+prm["newton_solver"]["maximum_iterations"] = 25
+prm["newton_solver"]["relaxation_parameter"] = 1.0
+prm["newton_solver"]["preconditioner"] = "default"
+prm["newton_solver"]["linear_solver"] = "mumps"
 
-problem_T = LinearVariationalProblem(lhs(E_T), rhs(E_T), T_, bc_T)
-solver_T = LinearVariationalSolver(problem_T)
+Dd_Pi = derivative(Pi, d_, d_t)
+J_d = derivative(Dd_Pi, d_, d)
+
+class DamageProblem(OptimisationProblem):
+    
+    def __init__(self):
+        OptimisationProblem.__init__(self)
+    
+    # Objective function
+    def f(self, x):
+        d_.vector()[:] = x
+        return assemble(Pi)
+    
+    # Gradient of the objective function
+    def F(self, b, x):
+        d_.vector()[:] = x
+        assemble(Dd_Pi, tensor=b)
+    
+    # Hessian of the objective function
+    def J(self, A, x):
+        d_.vector()[:] = x
+        assemble(J_d, tensor=A)
+
+# Create the PETScTAOSolver
+problem_d = DamageProblem()
+
+# Parse (PETSc) parameters
+parameters.parse()
+
+solver_d = PETScTAOSolver()
+
+d_lb = interpolate(Expression("0.", degree=1), V_d)  # lower bound, set to 0
+d_ub = interpolate(Expression("1.", degree=1), V_d)  # upper bound, set to 1
+
+for bc in bc_d:
+    bc.apply(d_lb.vector())
+
+for bc in bc_d:
+    bc.apply(d_ub.vector())
+
+J_T  = derivative(E_T, T_, T_t)
+problem_T = NonlinearVariationalProblem(E_T, T_, bc_T, J=J_T)
+solver_T = NonlinearVariationalSolver(problem_T)
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
 max_step = 1
-n_step = 100
+n_step = 101
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
@@ -163,41 +243,44 @@ conc_T = File ("./ResultsDir/T.pvd")
 
 # fname = open('ForcevsDisp.txt', 'w')
 
+# ur = 0.05
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
 
     iter = 0
     err = 1.0
-
+    load.t = 8.0e-4 * p
+    print('Load: ', load.t)
+    
     while err > tol and iter < max_iterations:
         iter += 1
         solver_u.solve()
-        solver_d.solve()
-        solver_T.solve() 
+        solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
+        # solver_T.solve()
 
         # err_u = errornorm(u_, uold, norm_type = 'l2', mesh = None)
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
-        err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+        # err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
     
-        err = max(err_d, err_T)
+        # err = max(err_d, err_T)
+        err = err_d
         # print('err_u: ', err_u)
         print('err_d: ', err_d)
-        print('err_T: ', err_T)
+        # print('err_T: ', err_T)
 
         # u0.assign(u_)
         d0.assign(d_)
-        T0.assign(T_)
+        # T0.assign(T_)
 
         if err < tol:
             print ('Iterations:', iter, ', Total time', p)
             conc_d << d_
-            conc_T << T_
+            conc_T << u_
     
         # Traction = dot(sigma(u_, T_), n)
         # fy = Traction[1]*ds(1)
         
         # fname.write(str(p*u_r) + "\t")
         # fname.write(str(assemble(fy)) + "\n")
-
 # fname.close()
 print ('Simulation completed')

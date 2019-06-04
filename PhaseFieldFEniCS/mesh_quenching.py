@@ -35,8 +35,8 @@ geofile = \
             Point(3) = {L/2, -H/2, 0, 1*lc};
             Point(4) = {-L/2, -H/2, 0, 1*lc};
 
-            // Point(5) = {-a, 0, 0, 1*lc};
-            // Point(6) = {a, 0, 0, 1*lc};
+            Point(5) = {-a, 0, 0, 1*lc};
+            Point(6) = {a, 0, 0, 1*lc};
 
 
             Line(1) = {1, 2};
@@ -47,12 +47,12 @@ geofile = \
 
             Plane Surface(30) = {5};
 
-            // Line(6) = {5, 6};
-            // Line{6} In Surface{30};
+            Line(6) = {5, 6};
+            Line{6} In Surface{30};
 
             Physical Surface(1) = {30};
 
-            // Physical Line(101) = {6};
+            Physical Line(101) = {6};
 
 """%(hsize)
 
