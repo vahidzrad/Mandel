@@ -20,8 +20,8 @@ set_log_level(20)
 solver_d_parameters={"method", "tron", 			# when using gpcg make sure that you have a constant Hessian
                "monitor_convergence", True,
                        #"line_search", "gpcg"
-                       "line_search", "nash"
-                       "preconditioner", "ml_amg"
+                       #"line_search", "nash"
+                       #"preconditioner", "ml_amg"
                "report", True}
 
 # parameters of the nonlinear solver used for the displacement-problem
@@ -34,7 +34,8 @@ solver_u_parameters ={"linear_solver", "mumps", # prefer "superlu_dist" or "mump
             "nonlinear_solver", "newton"}
 
 L = 50.0	# Width: mm (Chu 2017-3.3)
-H = 9.8		# Height: mm (Chu 2017-3.3)
+H = 9.8	# Height: mm (Chu 2017-3.3)
+a = 5.0     # Crack length
 
 subdir = "meshes/"
 meshname = "mesh" # "fracking_hsize%g" % (hsize)
@@ -57,11 +58,11 @@ E = 380.0e6		# Young's modulus: MPa (Chu 2017-4.1)
 nu = 0.25		# Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		# critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-l = 0.4			# length scale: mm (Chu 2017-4.1)
+l = 0.4		# length scale: mm (Chu 2017-4.1)
 hsize = l/2.		# mesh size: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017-3.3)
-Tw = Constant(680.)	# temperature of surface contacted with water: K (Chu 2017-3.3)
+Tw = Constant(300.)	# temperature of surface contacted with water: K (Chu 2017-3.3)
 
 lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
 mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
@@ -133,20 +134,25 @@ class Pinpoint(SubDomain):
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
 
-load = Expression("t", t = 0.0, degree=1)
+# load_top = Expression("t", t = 0.0, degree=1)
+# load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
-bc_u_bot= DirichletBC(V_u, Constant((0.0,0.0)), bot)
-bc_u_top = DirichletBC(V_u.sub(1), load, top)
-bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
-bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
+# bc_u_bot_i = DirichletBC(V_u.sub(0), Constant(0.), bot)
+# bc_u_bot_ii = DirichletBC(V_u.sub(1), load_bot, bot)
+bc_u_top = DirichletBC(V_u.sub(1), Constant(0.), top)
+bc_u_right = DirichletBC(V_u.sub(0), Constant(0.), right)
+bc_u_left = DirichletBC(V_u.sub(0), Constant(0.), left)
+# bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
+# bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
 # bc_u = [bc_u_pt_left, bc_u_pt_right]
-bc_u = [bc_u_bot, bc_u_top]
+bc_u = [bc_u_top, bc_u_right, bc_u_left]
 
 def Crack(x):
-    return abs(x[1]) < 1e-03 and x[0] <= 10.0 and x[0] >= -10.
+    return abs(x[1]) < 1e-03 and x[0] <= a and x[0] >= -a
 
-bc_d = [DirichletBC(V_d, Constant(0.0), right), DirichletBC(V_d, Constant(1.0), Crack)]
+# bc_d = [DirichletBC(V_d, Constant(1.0), Crack)]
+bc_d = [DirichletBC(V_d, Constant(0.0), right)]
 
 # Boundary conditions for T
 bc_T_top = DirichletBC(V_d, Tw, top) # Vahid: Tw or Ts?
@@ -165,12 +171,16 @@ n = FacetNormal(mesh)
 # E_u = (1.0-d_)**2.0 * inner(sigmap(u, T_), epsilone(u_t, T_)) * dx + inner(sigman(u, T_), epsilone(u_t, T_)) * dx
 # E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
 
+zero_v = Constant((0.,)*2)
+u0 = interpolate(zero_v, V_u)
+
 d0 = interpolate(Constant(0.0), V_d)
-T0 = interpolate(Expression('T_int', T_int = Ts, degree=1), V_d)
+T0 = interpolate(Expression('T_init', T_init = Tw, degree=1), V_d)
 # E_T = (1.0 - d_)**2 * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_)**2 * k * inner(grad(T), grad(T_t)) * dx
-E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) / deltaT * T * dx - (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
-# E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
-E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
+# E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) / deltaT * T * dx - (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+E_T = rho * c * (T_ - T0) * T * dx - deltaT * k * inner(grad(T_), grad(T)) * dx
+E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
+# E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
 E_d = (3.0/8.0) * Gc * (d_/l * dx + l * inner(grad(d_), grad(d_)) * dx)
 Pi = E_u + E_d
 
@@ -226,18 +236,38 @@ for bc in bc_d:
 for bc in bc_d:
     bc.apply(d_ub.vector())
 
+
+# solver_T = PETScTAOSolver()
+
+# T_lb = interpolate(Expression('T_init', T_init = Tw, degree=1), V_d)  # lower bound, set to 0
+# T_ub = interpolate(Expression('T_init', T_init = Ts, degree=1), V_d)  # upper bound, set to 1
+#
+# for bc in bc_T:
+#     bc.apply(T_lb.vector())
+#
+# for bc in bc_T:
+#     bc.apply(T_ub.vector())
+
 J_T  = derivative(E_T, T_, T_t)
 problem_T = NonlinearVariationalProblem(E_T, T_, bc_T, J=J_T)
 solver_T = NonlinearVariationalSolver(problem_T)
+prmT = solver_T.parameters
+prmT["newton_solver"]["absolute_tolerance"] = 1E-8
+prmT["newton_solver"]["relative_tolerance"] = 1E-7
+prmT["newton_solver"]["maximum_iterations"] = 25
+prmT["newton_solver"]["relaxation_parameter"] = 1.0
+prmT["newton_solver"]["preconditioner"] = "default"
+prmT["newton_solver"]["linear_solver"] = "mumps"
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
-max_step = 1
-n_step = 101
+max_step = 0.2
+n_step = 21
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
 tol = 1e-3
+conc_u = File ("./ResultsDir/u.pvd")
 conc_d = File ("./ResultsDir/d.pvd")
 conc_T = File ("./ResultsDir/T.pvd")
 
@@ -249,38 +279,47 @@ for (i_p, p) in enumerate(load_multipliers):
 
     iter = 0
     err = 1.0
-    load.t = 8.0e-4 * p
-    print('Load: ', load.t)
+    # load_top.t = 8.0e-4 * p
+    # load_bot.t = 8.0e-4 * p
+    # print('Load: ', load_top.t)
     
-    while err > tol and iter < max_iterations:
-        iter += 1
-        solver_u.solve()
-        solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
-        # solver_T.solve()
-
-        # err_u = errornorm(u_, uold, norm_type = 'l2', mesh = None)
-        err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
-        # err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+    # while err > tol and iter < max_iterations:
+    #     iter += 1
+    #     solver_u.solve()
+    #     solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
+    #     # solver_T.solve()
+    #
+    #     err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
+    #     err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
+    #     # err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+    #
+    #     err = max(err_d, err_u)
+    #     # err = err_d
+    #     # print('err_u: ', err_u)
+    #     print('err_d: ', err_d)
+    #     # print('err_T: ', err_T)
+    #
+    #     # u0.assign(u_)
+    #     u0.vector()[:] = u_.vector()
+    #     d0.vector()[:] = d_.vector()
+    #     # d0.assign(d_)
+    #     # T0.assign(T_)
+    #
+    #     if err < tol:
+    #         print ('Iterations:', iter, ', Total time', p)
+    #         conc_d << d_
+    #         conc_u << u_
+    #
+    #     # Traction = dot(sigma(u_, T_), n)
+    #     # fy = Traction[1]*ds(1)
+    #
+    #     # fname.write(str(p*u_r) + "\t")
+    #     # fname.write(str(assemble(fy)) + "\n")
     
-        # err = max(err_d, err_T)
-        err = err_d
-        # print('err_u: ', err_u)
-        print('err_d: ', err_d)
-        # print('err_T: ', err_T)
-
-        # u0.assign(u_)
-        d0.assign(d_)
-        # T0.assign(T_)
-
-        if err < tol:
-            print ('Iterations:', iter, ', Total time', p)
-            conc_d << d_
-            conc_T << u_
+    conc_T << T0
+    solver_T.solve()
+    # T0.assign(T_)
+    T0.vector()[:] = T_.vector()
     
-        # Traction = dot(sigma(u_, T_), n)
-        # fy = Traction[1]*ds(1)
-        
-        # fname.write(str(p*u_r) + "\t")
-        # fname.write(str(assemble(fy)) + "\n")
 # fname.close()
 print ('Simulation completed')
