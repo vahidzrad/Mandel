@@ -47,11 +47,12 @@ mesh = Mesh(subdir + meshname + ".xml")
 # Define Space
 V_u = VectorFunctionSpace(mesh, 'CG', 1)
 V_d = FunctionSpace(mesh, 'CG', 1)
+V_T = FunctionSpace(mesh, 'CG', 1)
 #WW = FunctionSpace(mesh, 'DG', 0)
 
 u_, u, u_t = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
-T_, T, T_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
+T_, T, T_t = Function(V_T), TrialFunction(V_T), TestFunction(V_T)
 
 # Introduce manually the material parameters
 E = 380.0e6		# Young's modulus: MPa (Chu 2017-4.1)
@@ -69,7 +70,7 @@ mu = Constant(E/(2*(1+nu))) 				# shear modulus: MPa (conversion formulae)
 
 rho = 3.9e-6						# density: kg/m^3 (Chu 2017-4.1)
 
-alpha = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
+beta = Constant(6.6e-6)				# linear expansion coefficient: 1/K (Chu 2017-4.1)
 
 c = Constant(961.5e6)					# specific heat of material: #J/(kgK) (Chu 2017-4.1)
 k = Constant(21.0e3)					# thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
@@ -82,13 +83,13 @@ def epsilon(u_):
     return sym(grad(u_))
 
 def epsilonT(u_, T_):
-    return alpha * (T_ - Ts) * Identity(len(u_))
-
-# def epsilone(u_, t_):
-#     return epsilon(u_) - epsilonT(u_, t_)
+    return beta * (T_ - Ts) * Identity(len(u_))
 
 def epsilone(u_, T_):
-    return sym(grad(u_))
+    return epsilon(u_) - epsilonT(u_, T_)
+
+# def epsilone(u_, T_):
+#     return sym(grad(u_))
 
 # stress
 def sigma(u_): # not applicable
@@ -134,32 +135,28 @@ class Pinpoint(SubDomain):
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
 
-# load_top = Expression("t", t = 0.0, degree=1)
-# load_bot = Expression("-t", t = 0.0, degree=1)
+load_top = Expression("t", t = 0.0, degree=1)
+load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
-# bc_u_bot_i = DirichletBC(V_u.sub(0), Constant(0.), bot)
-# bc_u_bot_ii = DirichletBC(V_u.sub(1), load_bot, bot)
 bc_u_top = DirichletBC(V_u.sub(1), Constant(0.), top)
 bc_u_right = DirichletBC(V_u.sub(0), Constant(0.), right)
 bc_u_left = DirichletBC(V_u.sub(0), Constant(0.), left)
 # bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 # bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-# bc_u = [bc_u_pt_left, bc_u_pt_right]
-bc_u = [bc_u_top, bc_u_right, bc_u_left]
+bc_u = [bc_u_right, bc_u_left, bc_u_top]
 
 def Crack(x):
     return abs(x[1]) < 1e-03 and x[0] <= a and x[0] >= -a
 
-# bc_d = [DirichletBC(V_d, Constant(1.0), Crack)]
-bc_d = [DirichletBC(V_d, Constant(0.0), right)]
+bc_d = [DirichletBC(V_d, Constant(0.0), top)]
 
 # Boundary conditions for T
-bc_T_top = DirichletBC(V_d, Tw, top) # Vahid: Tw or Ts?
-bc_T_bot = DirichletBC(V_d, Tw, bot)
-bc_T_left = DirichletBC(V_d, Tw, left)
-bc_T_right = DirichletBC(V_d, Tw, right)
-bc_T = [bc_T_top, bc_T_bot, bc_T_left, bc_T_right]
+bc_T = [DirichletBC(V_T, Tw, bot)]
+# bc_T_top = DirichletBC(V_T, Ts, top)
+# bc_T_right = DirichletBC(V_T, Ts, right)
+# bc_T_left = DirichletBC(V_T, Ts, left)
+# bc_T = [bc_T_top, bc_T_right, bc_T_left]
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
@@ -175,12 +172,11 @@ zero_v = Constant((0.,)*2)
 u0 = interpolate(zero_v, V_u)
 
 d0 = interpolate(Constant(0.0), V_d)
-T0 = interpolate(Expression('T_init', T_init = Tw, degree=1), V_d)
+T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 # E_T = (1.0 - d_)**2 * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_)**2 * k * inner(grad(T), grad(T_t)) * dx
-# E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) / deltaT * T * dx - (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
-E_T = rho * c * (T_ - T0) * T * dx - deltaT * k * inner(grad(T_), grad(T)) * dx
+E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+# E_T = rho * c * (T_ - T0) * T * dx - deltaT * k * inner(grad(T_), grad(T)) * dx
 E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
-# E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
 E_d = (3.0/8.0) * Gc * (d_/l * dx + l * inner(grad(d_), grad(d_)) * dx)
 Pi = E_u + E_d
 
@@ -236,28 +232,16 @@ for bc in bc_d:
 for bc in bc_d:
     bc.apply(d_ub.vector())
 
-
-# solver_T = PETScTAOSolver()
-
-# T_lb = interpolate(Expression('T_init', T_init = Tw, degree=1), V_d)  # lower bound, set to 0
-# T_ub = interpolate(Expression('T_init', T_init = Ts, degree=1), V_d)  # upper bound, set to 1
-#
-# for bc in bc_T:
-#     bc.apply(T_lb.vector())
-#
-# for bc in bc_T:
-#     bc.apply(T_ub.vector())
-
 J_T  = derivative(E_T, T_, T_t)
 problem_T = NonlinearVariationalProblem(E_T, T_, bc_T, J=J_T)
 solver_T = NonlinearVariationalSolver(problem_T)
-prmT = solver_T.parameters
-prmT["newton_solver"]["absolute_tolerance"] = 1E-8
-prmT["newton_solver"]["relative_tolerance"] = 1E-7
-prmT["newton_solver"]["maximum_iterations"] = 25
-prmT["newton_solver"]["relaxation_parameter"] = 1.0
-prmT["newton_solver"]["preconditioner"] = "default"
-prmT["newton_solver"]["linear_solver"] = "mumps"
+# prmT = solver_T.parameters
+# prmT["newton_solver"]["absolute_tolerance"] = 1E-8
+# prmT["newton_solver"]["relative_tolerance"] = 1E-7
+# prmT["newton_solver"]["maximum_iterations"] = 25
+# prmT["newton_solver"]["relaxation_parameter"] = 1.0
+# prmT["newton_solver"]["preconditioner"] = "default"
+# prmT["newton_solver"]["linear_solver"] = "mumps"
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
@@ -274,41 +258,45 @@ conc_T = File ("./ResultsDir/T.pvd")
 # fname = open('ForcevsDisp.txt', 'w')
 
 # ur = 0.05
+solver_u.solve()
+solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
+d0.vector()[:] = d_.vector()
+
+# T_.vector()[:] = T0.vector()
+# solver_T.solve()
+T_.vector()[:] = T0.vector()
+# conc_T << T0
+
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
 
     iter = 0
     err = 1.0
-    # load_top.t = 8.0e-4 * p
-    # load_bot.t = 8.0e-4 * p
+    load_top.t = 8.0e-4 * p
+    load_bot.t = 8.0e-4 * p
     # print('Load: ', load_top.t)
     
-    # while err > tol and iter < max_iterations:
-    #     iter += 1
-    #     solver_u.solve()
-    #     solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
-    #     # solver_T.solve()
+    while err > tol and iter < max_iterations:
+        iter += 1
+        solver_u.solve()
+        solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
+        # solver_T.solve()
     #
-    #     err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
-    #     err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
-    #     # err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+        err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
+        err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
+    #     err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
     #
-    #     err = max(err_d, err_u)
-    #     # err = err_d
-    #     # print('err_u: ', err_u)
-    #     print('err_d: ', err_d)
-    #     # print('err_T: ', err_T)
-    #
-    #     # u0.assign(u_)
-    #     u0.vector()[:] = u_.vector()
-    #     d0.vector()[:] = d_.vector()
-    #     # d0.assign(d_)
-    #     # T0.assign(T_)
-    #
-    #     if err < tol:
-    #         print ('Iterations:', iter, ', Total time', p)
-    #         conc_d << d_
-    #         conc_u << u_
+        err = max(err_d, err_u)
+        # err = err_d
+        # print('err_u: ', err_u)
+        
+        u0.vector()[:] = u_.vector()
+        d0.vector()[:] = d_.vector()
+    
+        if err < tol:
+            print ('Iterations:', iter, ', Total time', p)
+            conc_d << d_
+            conc_u << u_
     #
     #     # Traction = dot(sigma(u_, T_), n)
     #     # fy = Traction[1]*ds(1)
@@ -316,10 +304,19 @@ for (i_p, p) in enumerate(load_multipliers):
     #     # fname.write(str(p*u_r) + "\t")
     #     # fname.write(str(assemble(fy)) + "\n")
     
-    conc_T << T0
-    solver_T.solve()
-    # T0.assign(T_)
-    T0.vector()[:] = T_.vector()
+    iter = 0
+    err = 1.0
+    while err > tol and iter < max_iterations:
+        iter += 1
+        solver_T.solve()
+        err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+
+        # # # T0.assign(T_)
+        T0.vector()[:] = T_.vector()
+        if err < tol:
+            print ('Iterations:', iter, ', Total time', p)
+            conc_T << T_
+
     
 # fname.close()
 print ('Simulation completed')
