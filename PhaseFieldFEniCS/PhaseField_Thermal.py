@@ -139,13 +139,14 @@ load_top = Expression("t", t = 0.0, degree=1)
 load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
-bc_u_top = DirichletBC(V_u.sub(1), load_top, top)
+bc_u_top_i = DirichletBC(V_u.sub(1), load_top, top)
+bc_u_top_ii = DirichletBC(V_u.sub(0), 0.0, top)
 bc_u_bot = DirichletBC(V_u, (0.0, 0.0), bot)
 # bc_u_right = DirichletBC(V_u.sub(0), Constant(0.), right)
 # bc_u_left = DirichletBC(V_u.sub(0), Constant(0.), left)
 # bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 # bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-bc_u = [bc_u_top, bc_u_bot]
+bc_u = [bc_u_top_i, bc_u_top_ii, bc_u_bot]
 
 def Crack(x):
     return abs(x[1]) < 1e-03 and x[0] <= a and x[0] >= -a
@@ -246,8 +247,8 @@ solver_T = NonlinearVariationalSolver(problem_T)
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
-max_step = 1.0
-n_step = 101
+max_step = 0.5
+n_step = 51
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
@@ -259,7 +260,9 @@ conc_T = File ("./ResultsDir/T.pvd")
 # fname = open('ForcevsDisp.txt', 'w')
 
 # ur = 0.05
-solver_u.solve()
+# solver_u.solve()
+# u0.vector()[:] = u_.vector()
+
 solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
 d0.vector()[:] = d_.vector()
 
