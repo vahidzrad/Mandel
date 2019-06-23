@@ -33,22 +33,19 @@ solver_u_parameters ={"linear_solver", "mumps", # prefer "superlu_dist" or "mump
             "symmetric", True,
             "nonlinear_solver", "newton"}
 
-L = 50.0	# Width: mm (Chu 2017-3.3)
-H = 9.8	# Height: mm (Chu 2017-3.3)
-a = 5.0     # Crack length
+L = 10.0	# Width: mm (Chu 2017-3.3)
+H = 10.0	    # Height: mm (Chu 2017-3.3)
+a = 4.0     # Crack length
 
 subdir = "meshes/"
 meshname = "mesh" # "fracking_hsize%g" % (hsize)
 
-#mesh = Mesh('mesh.xml')
 mesh = Mesh(subdir + meshname + ".xml")
-# mesh_fun = MeshFunction("size_t", mesh, subdir + meshname + "_facet_region.xml")
 
 # Define Space
 V_u = VectorFunctionSpace(mesh, 'CG', 1)
 V_d = FunctionSpace(mesh, 'CG', 1)
 V_T = FunctionSpace(mesh, 'CG', 1)
-#WW = FunctionSpace(mesh, 'DG', 0)
 
 u_, u, u_t = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
@@ -59,7 +56,7 @@ E = 380.0e6		# Young's modulus: MPa (Chu 2017-4.1)
 nu = 0.25		# Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		# critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-l = 0.4		# length scale: mm (Chu 2017-4.1)
+l = 0.1		# length scale: mm (Chu 2017-4.1)
 hsize = l/2.		# mesh size: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	# initial temperature of slab: K (Chu 2017-3.3)
@@ -92,8 +89,8 @@ def epsilone(u_, T_):
     return sym(grad(u_))
 
 # stress
-def sigma(u_): # not applicable
-    return lmbda * tr(epsilon(u_)) * Identity(len(u_)) + 2.0 * mu * epsilon(u_)
+# def sigma(u_): # not applicable
+#     return lmbda * tr(epsilon(u_)) * Identity(len(u_)) + 2.0 * mu * epsilon(u_)
 
 def sigma(u_, T_): # no decomposition
     return lmbda * tr(epsilone(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilone(u_, T_))
@@ -116,10 +113,10 @@ def psin(u_, T_):
     return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0)**2
 
 # Boundary conditions
-top = CompiledSubDomain("near(x[1], 4.9) && on_boundary")
-bot = CompiledSubDomain("near(x[1], -4.9) && on_boundary")
-left = CompiledSubDomain("near(x[0], -25.0) && on_boundary")
-right = CompiledSubDomain("near(x[0], 25.0) && on_boundary")
+top = CompiledSubDomain("near(x[1], 5.0) && on_boundary")
+bot = CompiledSubDomain("near(x[1], -5.0) && on_boundary")
+left = CompiledSubDomain("near(x[0], -5.0) && on_boundary")
+right = CompiledSubDomain("near(x[0], 5.0) && on_boundary")
 
 class Pinpoint(SubDomain):
     TOL = 1e-3
@@ -139,17 +136,17 @@ load_top = Expression("t", t = 0.0, degree=1)
 load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
-bc_u_top_i = DirichletBC(V_u.sub(1), load_top, top)
-bc_u_top_ii = DirichletBC(V_u.sub(0), 0.0, top)
-bc_u_bot = DirichletBC(V_u, (0.0, 0.0), bot)
+bc_u_top = DirichletBC(V_u.sub(1), load_top, top)
+bc_u_bot_i = DirichletBC(V_u.sub(1), load_bot, bot)
+bc_u_bot_ii = DirichletBC(V_u.sub(0), Constant(0.0), bot)
 # bc_u_right = DirichletBC(V_u.sub(0), Constant(0.), right)
 # bc_u_left = DirichletBC(V_u.sub(0), Constant(0.), left)
 # bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 # bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-bc_u = [bc_u_top_i, bc_u_top_ii, bc_u_bot]
+bc_u = [bc_u_top, bc_u_bot_i, bc_u_bot_ii]
 
 def Crack(x):
-    return abs(x[1]) < 1e-03 and x[0] <= a and x[0] >= -a
+    return abs(x[1]) < 1e-03 and x[0] <= a/2.0 and x[0] >= -a/2.0
 
 bc_d = [DirichletBC(V_d, Constant(1.0), Crack)]
 
@@ -163,6 +160,7 @@ bc_T = [DirichletBC(V_T, Tw, bot)]
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
 top.mark(boundaries,1)
+bot.mark(boundaries,2)
 ds = Measure("ds")(subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
@@ -175,24 +173,23 @@ u0 = interpolate(zero_v, V_u)
 
 d0 = interpolate(Constant(0.0), V_d)
 T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
-# E_T = (1.0 - d_)**2 * rho * c * (T - T0) / deltaT * T_t * dx - (1.0 - d_)**2 * k * inner(grad(T), grad(T_t)) * dx
 E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 # E_T = rho * c * (T_ - T0) * T * dx - deltaT * k * inner(grad(T_), grad(T)) * dx
 E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
-E_d = (3.0/8.0) * Gc * (d_/l * dx + l * inner(grad(d_), grad(d_)) * dx)
+E_d = (1.0/2.0) * Gc * (d_**2/l * dx + l * inner(grad(d_), grad(d_)) * dx)
 Pi = E_u + E_d
 
 Du_Pi = derivative(Pi, u_, u_t)
 J_u = derivative(Du_Pi, u_, u)
 problem_u = NonlinearVariationalProblem(Du_Pi, u_, bc_u, J_u)
 solver_u = NonlinearVariationalSolver(problem_u)
-# prm = solver_u.parameters
-# prm["newton_solver"]["absolute_tolerance"] = 1E-8
-# prm["newton_solver"]["relative_tolerance"] = 1E-7
-# prm["newton_solver"]["maximum_iterations"] = 25
-# prm["newton_solver"]["relaxation_parameter"] = 1.0
-# prm["newton_solver"]["preconditioner"] = "default"
-# prm["newton_solver"]["linear_solver"] = "mumps"
+prm = solver_u.parameters
+prm["newton_solver"]["absolute_tolerance"] = 1E-8
+prm["newton_solver"]["relative_tolerance"] = 1E-7
+prm["newton_solver"]["maximum_iterations"] = 25
+prm["newton_solver"]["relaxation_parameter"] = 1.0
+prm["newton_solver"]["preconditioner"] = "default"
+prm["newton_solver"]["linear_solver"] = "mumps"
 
 Dd_Pi = derivative(Pi, d_, d_t)
 J_d = derivative(Dd_Pi, d_, d)
@@ -247,22 +244,23 @@ solver_T = NonlinearVariationalSolver(problem_T)
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
-max_step = 0.5
-n_step = 51
+max_step = 0.75
+n_step = 76
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
 tol = 1e-3
 conc_u = File ("./ResultsDir/u.pvd")
 conc_d = File ("./ResultsDir/d.pvd")
-conc_T = File ("./ResultsDir/T.pvd")
+# conc_T = File ("./ResultsDir/T.pvd")
 
 # fname = open('ForcevsDisp.txt', 'w')
 
 # ur = 0.05
-# solver_u.solve()
-# u0.vector()[:] = u_.vector()
+solver_u.solve()
+u0.vector()[:] = u_.vector()
 
+# d_.vector()[:] = d0.vector()
 solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
 d0.vector()[:] = d_.vector()
 

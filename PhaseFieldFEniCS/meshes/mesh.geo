@@ -1,9 +1,9 @@
 
-            lc = DefineNumber[ 0.2, Name "Parameters/lc" ];
-            H = 9.8;
-            L = 50.;
+            lc = DefineNumber[ 0.05, Name "Parameters/lc" ];
+            H = 10.0;
+            L = 10.0;
 
-            a=24.0;
+            a = 4.0;
 
             Point(1) = {-L/2, H/2, 0, 5*lc};
             Point(2) = {L/2, H/2, 0, 5*lc};
