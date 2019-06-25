@@ -1,17 +1,17 @@
 
-            lc = DefineNumber[ 0.05, Name "Parameters/lc" ];
-            H = 10.0;
-            L = 10.0;
+            lc = DefineNumber[ 0.0002, Name "Parameters/lc" ];
+            H = 9.8e-3;
+            L = 50.0e-3;
 
-            a = 4.0;
+            // a = 4.0;
 
-            Point(1) = {-L/2, H/2, 0, 5*lc};
-            Point(2) = {L/2, H/2, 0, 5*lc};
-            Point(3) = {L/2, -H/2, 0, 5*lc};
-            Point(4) = {-L/2, -H/2, 0, 5*lc};
+            Point(1) = {0, 0, 0, lc};
+            Point(2) = {L, 0, 0, lc};
+            Point(3) = {L, H, 0, lc};
+            Point(4) = {0, H, 0, lc};
 
-            Point(5) = {-a, 0, 0, 1*lc};
-            Point(6) = {a, 0, 0, 1*lc};
+            // Point(5) = {-a, 0, 0, 1*lc};
+            // Point(6) = {a, 0, 0, 1*lc};
             
             Line(1) = {1, 2};
             Line(2) = {2, 3};
@@ -21,11 +21,11 @@
 
             Plane Surface(30) = {5};
 
-            Line(6) = {5, 6};
+            // Line(6) = {5, 6};
             
-            Line{6} In Surface{30};
+            // Line{6} In Surface{30};
             
             Physical Surface(1) = {30};
 
-            Physical Line(101) = {6};
+            // Physical Line(101) = {6};
 
