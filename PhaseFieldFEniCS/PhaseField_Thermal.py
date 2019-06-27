@@ -67,12 +67,12 @@ mu = Constant(E/(2*(1+nu)))      				# shear modulus: MPa (conversion formulae)
 
 rho = 3.9e3 						            # density: kg/m^3 (Chu 2017-4.1)
 
-alpha = Constant(6.6e-6)				            # linear expansion coefficient: 1/K (Chu 2017-4.1)
+alpha = Constant(6.6e-6)                        # linear expansion coefficient: 1/K (Chu 2017-4.1)
 
 c = Constant(961.5) 					        # specific heat of material: #J/(kgK) (Chu 2017-4.1)
 k = Constant(21.0)  					        # thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
 cw = 2.0/3.0                                    # To choose if AT1 or AT2 model is used.
-deltaT = rho * c * hsize**2 / k          # source: (Chu2017-3.3: hsize vs H?)
+deltaT = rho * c * hsize**2 / k                 # source: (Chu2017-3.3: hsize vs H?)
 print('DeltaT', deltaT)
 
 # Constituive functions
@@ -179,6 +179,12 @@ T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_**2/l * dx + l * inner(grad(d_), grad(d_)) * dx)
 E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+
+# Added with refer to Chu 2017
+E_u = (1.0 - d_)**2.0 * inner(sigmap(u_, T_), epsilone(u, T)) * dx + inner(sigman(u_, T_), epsilone(u, T)) * dx
+E_d = (Gc/l + 2 * H) * d_ * d * dx + Gc * l * inner(grad(d_), grad(d)) * dx - 2 * H * d * dx
+E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+# End
 
 Pi = E_u + E_d
 
