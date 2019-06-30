@@ -13,6 +13,7 @@
 # Preliminaries and mesh
 from dolfin import *
 import numpy as np
+import ipdb
 
 set_log_level(20)
 
@@ -50,6 +51,7 @@ V_T = FunctionSpace(mesh, 'CG', 1)
 u_, u, u_t = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_T), TrialFunction(V_T), TestFunction(V_T)
+H_ = Function(V_d)
 
 # Introduce manually the material parameters
 E = 380.0e9		                                # Young's modulus: MPa (Chu 2017-4.1)
@@ -81,7 +83,7 @@ def epsilon(u_):
     return sym(grad(u_))
 
 def epsilonT(u_, T_):
-    return alpha * (T_ - Ts) * Identity(len(u_))
+    return alpha * (T_) * Identity(len(u_))
 
 def epsilone(u_, T_):
     return epsilon(u_) - epsilonT(u_, T_)
@@ -107,11 +109,14 @@ def psi(u_, T_):
     return lmbda/2.0 * tr(epsilone(u_, T_))**2 + mu * inner(epsilone(u_, T_), epsilone(u_, T_))
 
 def psip(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2 \
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2.0 \
     + mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
 
 def psin(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0)**2
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0)**2.0
+
+# def H(u_, T_):
+#     return 0.5 * (abs(psin(u_, T_) - psip(u_, T_)) + abs(psin(u_, T_) + psip(u_, T_)))
 
 # Boundary conditions
 top = CompiledSubDomain("near(x[1], 50.0e-3) && on_boundary")
@@ -137,38 +142,31 @@ pinpoint_r = Pinpoint([L,0.])
 # load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
-# bc_u_top = DirichletBC(V_u.sub(1), load_top, top)
-# bc_u_bot_i = DirichletBC(V_u.sub(1), load_bot, bot)
-# bc_u_bot_ii = DirichletBC(V_u.sub(0), Constant(0.0), bot)
-# bc_u_right = DirichletBC(V_u.sub(0), Constant(0.), right)
-# bc_u_left = DirichletBC(V_u.sub(0), Constant(0.), left)
 bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
 bc_u = [bc_u_pt_left, bc_u_pt_right]
 
+alpine = max(E, nu)
+print(alpine)
 # def Crack(x):
 #     return abs(x[1]) < 1e-03 and x[0] <= a/2.0 and x[0] >= -a/2.0
 
 bc_d = [DirichletBC(V_d, Constant(0.0), right)]
 
 # Boundary conditions for T
-# bc_T = [DirichletBC(V_T, Tw, bot)]
 bc_T_top = DirichletBC(V_T, Tw, top)
-bc_T_bot = DirichletBC(V_T, Ts, right)
+bc_T_bot = DirichletBC(V_T, Tw, bot)
 bc_T_left = DirichletBC(V_T, Tw, left)
-# bc_T_right = DirichletBC(V_T, Tw, right)
 bc_T = [bc_T_top, bc_T_bot, bc_T_left]
 
 boundaries = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
 boundaries.set_all(0)
 top.mark(boundaries,1)
 bot.mark(boundaries,2)
+left.mark(boundaries,3)
+right.mark(boundaries,4)
 ds = Measure("ds")(subdomain_data = boundaries)
 n = FacetNormal(mesh)
-
-# weak form
-# E_u = (1.0-d_)**2.0 * inner(sigmap(u, T_), epsilone(u_t, T_)) * dx + inner(sigman(u, T_), epsilone(u_t, T_)) * dx
-# E_d = (3.0/8.0) * Gc * (d_t/l * dx + 2.0 * l * inner(grad(d), grad(d_t)) * dx) - 2.0 * (1.0 - d) * psip(u_, T_) * d_t * dx
 
 zero_v = Constant((0.,)*2)
 u0 = interpolate(zero_v, V_u)
@@ -176,14 +174,22 @@ u0 = interpolate(zero_v, V_u)
 d0 = interpolate(Constant(0.0), V_d)
 T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 
+# Energy form
 E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_**2/l * dx + l * inner(grad(d_), grad(d_)) * dx)
+# E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+
+# weak form with refer to Chu 2017
 E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 
-# Added with refer to Chu 2017
-E_u = (1.0 - d_)**2.0 * inner(sigmap(u_, T_), epsilone(u, T)) * dx + inner(sigman(u_, T_), epsilone(u, T)) * dx
-E_d = (Gc/l + 2 * H) * d_ * d * dx + Gc * l * inner(grad(d_), grad(d)) * dx - 2 * H * d * dx
-E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
+# E_u = (1.0 - d_)**2.0 * inner(sigmap(u_, T_), epsilone(u_t, T_t)) * dx + \
+#       (1.0 - d_)**2.0 * inner(sigmap(u_, T_), epsilone(u_t, T_t)) * dx + \
+#       (1.0 - d_)**2.0 * inner(dev(sigma(u_, T_)), dev(u_t, T_t)) * dx
+#
+# E_d = -2.0 * (1.0 - d_) * d_t * inner(dev(sigma(u_, T_)), dev(u_, T_)) * dx + \
+#     + Gc/(4.0 * cw)/l * (2.0 * d_ * d_t + 2.0 * l**2.0 * inner(grad(d_), grad(d_t))) * dx
+
+E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T_t * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T_t)) * dx
 # End
 
 Pi = E_u + E_d
@@ -240,7 +246,7 @@ for bc in bc_d:
 for bc in bc_d:
     bc.apply(d_ub.vector())
 
-J_T  = derivative(E_T, T_, T_t)
+J_T  = derivative(E_T, T_, T)
 problem_T = NonlinearVariationalProblem(E_T, T_, bc_T, J=J_T)
 solver_T = NonlinearVariationalSolver(problem_T)
 # prmT = solver_T.parameters
@@ -261,22 +267,11 @@ max_iterations = 100
 tol = 1e-3
 conc_u = File ("./ResultsDir/u.pvd")
 conc_d = File ("./ResultsDir/d.pvd")
-# conc_T = File ("./ResultsDir/T.pvd")
+conc_T = File ("./ResultsDir/T.pvd")
 
 # fname = open('ForcevsDisp.txt', 'w')
 
-# ur = 0.05
-solver_u.solve()
-u0.vector()[:] = u_.vector()
-
-# d_.vector()[:] = d0.vector()
-solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
-d0.vector()[:] = d_.vector()
-
-# T_.vector()[:] = T0.vector()
-solver_T.solve()
-T0.vector()[:] = T_.vector()
-# conc_T << T0
+# ipdb.set_trace()
 
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
@@ -290,8 +285,10 @@ for (i_p, p) in enumerate(load_multipliers):
     while err > tol and iter < max_iterations:
         iter += 1
         solver_u.solve()
+        print('done!')
         solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
         # solver_T.solve()
+        print('done!')
     #
         err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
@@ -324,6 +321,7 @@ for (i_p, p) in enumerate(load_multipliers):
     #
     #     # # # T0.assign(T_)
         T0.vector()[:] = T_.vector()
+        print('done!')
     #     if err < tol:
     #         print ('Iterations:', iter, ', Total time', p)
         conc_T << T_
