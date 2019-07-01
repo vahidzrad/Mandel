@@ -1,12 +1,12 @@
 # Phase field fracture implementation in FEniCS    
 # The code is distributed under a BSD license     
-      
+
 # If using this code for research or industrial purposes, please cite:
 # Hirshikesh, S. Natarajan, R. K. Annabattula, E. Martinez-Paneda.
 # Phase field modelling of crack propagation in functionally graded materials.
 # Composites Part B: Engineering 169, pp. 239-248 (2019)
 # doi: 10.1016/j.compositesb.2019.04.003
-      
+
 # Emilio Martinez-Paneda (mail@empaneda.com)
 # University of Cambridge
 
@@ -101,6 +101,7 @@ def sigma(u_, T_): # no decomposition
 def sigmap(u_, T_): # sigma_+ for Amor's model
     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
     + 2.0 * mu * dev(epsilone(u_, T_))
+
 def sigman(u_, T_): # sigma_- for Amor's model
     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
 
@@ -175,7 +176,8 @@ d0 = interpolate(Constant(0.0), V_d)
 T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 
 # Energy form
-E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
+# E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
+E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_**2/l * dx + l * inner(grad(d_), grad(d_)) * dx)
 # E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 
