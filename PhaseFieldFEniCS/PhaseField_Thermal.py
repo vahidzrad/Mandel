@@ -16,6 +16,7 @@ import numpy as np
 import ipdb
 
 set_log_level(20)
+coding=utf-8
 
 # parameters of the nonlinear solver used for the d-problem
 solver_d_parameters={"method", "tron", 			# when using gpcg make sure that you have a constant Hessian
@@ -58,13 +59,13 @@ E = 380.0e9		                                # Young's modulus: MPa (Chu 2017-4.
 nu = 0.25		                                # Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		                                # critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-l = 0.4e-3		                                # length scale: mm (Chu 2017-4.1)
+l = 1.0e-3		                                # length scale: mm (Chu 2017-4.1)
 hsize = l/2.		                            # mesh size: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	                        # initial temperature of slab: K (Chu 2017-3.3)
 Tw = Constant(300.)	                            # temperature of surface contacted with water: K (Chu 2017-3.3)
 
-lmbda  = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
+lmbda = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
 mu = Constant(E/(2*(1+nu)))      				# shear modulus: MPa (conversion formulae)
 
 rho = 3.9e3 						            # density: kg/m^3 (Chu 2017-4.1)
@@ -139,13 +140,18 @@ class Pinpoint(SubDomain):
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
 
-# load_top = Expression("t", t = 0.0, degree=1)
+load_top = Expression("[0.0, t]", t = 0.0, degree=1)
 # load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
 bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-bc_u = [bc_u_pt_left, bc_u_pt_right]
+bc_u_bot = [DirichletBC(V_u, Constant([0.0, 0.0]), bot)]
+# bc_u_top = [DirichletBC(V_u, Constant([0.0, load_top]), top)]
+bc_u_top = [DirichletBC(V_u, load_top, top)]
+
+# bc_u = [bc_u_pt_left, bc_u_pt_right]
+bc_u = [bc_u_bot, bc_u_top]
 
 alpine = max(E, nu)
 print(alpine)
@@ -280,17 +286,17 @@ for (i_p, p) in enumerate(load_multipliers):
 
     iter = 0
     err = 1.0
-    # load_top.t = 1.0e-3 * p
+    load_top.t = 1.0e-3 * p
     # load_bot.t = 1.0e-3 * p
     # print('Load: ', load_top.t)
     
     while err > tol and iter < max_iterations:
         iter += 1
         solver_u.solve()
-        print('done!')
+        # print('done!')
         solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
         # solver_T.solve()
-        print('done!')
+        # print('done!')
     #
         err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
@@ -322,11 +328,11 @@ for (i_p, p) in enumerate(load_multipliers):
     #     err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
     #
     #     # # # T0.assign(T_)
-        T0.vector()[:] = T_.vector()
-        print('done!')
+    #     T0.vector()[:] = T_.vector()
+        # print('done!')
     #     if err < tol:
     #         print ('Iterations:', iter, ', Total time', p)
-        conc_T << T_
+    #     conc_T << T_
 
     
 # fname.close()
