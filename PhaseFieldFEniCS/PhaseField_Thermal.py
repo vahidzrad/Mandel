@@ -16,7 +16,6 @@ import numpy as np
 import ipdb
 
 set_log_level(20)
-coding=utf-8
 
 # parameters of the nonlinear solver used for the d-problem
 solver_d_parameters={"method", "tron", 			# when using gpcg make sure that you have a constant Hessian

@@ -1,0 +1,11 @@
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp: In member function ‘virtual void dolfin::dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468::eval(Eigen::Ref<Eigen::Matrix<double, -1, 1> >, Eigen::Ref<const Eigen::Matrix<double, -1, 1> >) const’:
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp:62:24: error: expected identifier before numeric constant
+           values[0] = [0.0, t];
+                        ^~~
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp:62:27: error: expected ‘]’ before ‘,’ token
+           values[0] = [0.0, t];
+                           ^
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp: In lambda function:
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp:62:27: error: expected ‘{’ before ‘,’ token
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp: In member function ‘virtual void dolfin::dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468::eval(Eigen::Ref<Eigen::Matrix<double, -1, 1> >, Eigen::Ref<const Eigen::Matrix<double, -1, 1> >) const’:
+/tmp/tmp04cyuic1/dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468.cpp:62:27: error: cannot convert ‘dolfin::dolfin_expression_bced18b3f7a2f7cf97d2e461b964b468::eval(Eigen::Ref<Eigen::Matrix<double, -1, 1> >, Eigen::Ref<const Eigen::Matrix<double, -1, 1> >) const::<lambda()>’ to ‘Eigen::DenseCoeffsBase<Eigen::Ref<Eigen::Matrix<double, -1, 1> >, 1>::Scalar {aka double}’ in assignment
