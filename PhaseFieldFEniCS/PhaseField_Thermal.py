@@ -75,7 +75,7 @@ c = Constant(961.5) 					        # specific heat of material: #J/(kgK) (Chu 2017
 k = Constant(21.0)  					        # thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
 cw = 2.0/3.0                                    # To choose if AT1 or AT2 model is used.
 deltaT = rho * c * hsize**2 / k                 # source: (Chu2017-3.3: hsize vs H?)
-print('DeltaT', deltaT)
+# print('DeltaT', deltaT)
 
 # Constituive functions
 # strain
@@ -85,11 +85,11 @@ def epsilon(u_):
 def epsilonT(u_, T_):
     return alpha * (T_) * Identity(len(u_))
 
-def epsilone(u_, T_):
-    return epsilon(u_) - epsilonT(u_, T_)
-
 # def epsilone(u_, T_):
-#     return sym(grad(u_))
+#     return epsilon(u_) - epsilonT(u_, T_)
+
+def epsilone(u_, T_):
+    return sym(grad(u_))
 
 # stress
 # def sigma(u_): # not applicable
@@ -139,21 +139,18 @@ class Pinpoint(SubDomain):
 pinpoint_l = Pinpoint([0.,0.])
 pinpoint_r = Pinpoint([L,0.])
 
-load_top = Expression("[0.0, t]", t = 0.0, degree=1)
+load_top = Expression("t", t = 0.0, degree=1)
 # load_bot = Expression("-t", t = 0.0, degree=1)
 
 # Boundary conditions for u
 bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
 bc_u_bot = [DirichletBC(V_u, Constant([0.0, 0.0]), bot)]
-# bc_u_top = [DirichletBC(V_u, Constant([0.0, load_top]), top)]
-bc_u_top = [DirichletBC(V_u, load_top, top)]
+bc_u_top = [DirichletBC(V_u.sub(1), load_top, top)]
 
 # bc_u = [bc_u_pt_left, bc_u_pt_right]
 bc_u = [bc_u_bot, bc_u_top]
 
-alpine = max(E, nu)
-print(alpine)
 # def Crack(x):
 #     return abs(x[1]) < 1e-03 and x[0] <= a/2.0 and x[0] >= -a/2.0
 
@@ -181,8 +178,8 @@ d0 = interpolate(Constant(0.0), V_d)
 T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 
 # Energy form
-# E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
-E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
+E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
+# E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_**2/l * dx + l * inner(grad(d_), grad(d_)) * dx)
 # E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 
@@ -292,10 +289,8 @@ for (i_p, p) in enumerate(load_multipliers):
     while err > tol and iter < max_iterations:
         iter += 1
         solver_u.solve()
-        # print('done!')
         solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
         # solver_T.solve()
-        # print('done!')
     #
         err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
@@ -328,7 +323,6 @@ for (i_p, p) in enumerate(load_multipliers):
     #
     #     # # # T0.assign(T_)
     #     T0.vector()[:] = T_.vector()
-        # print('done!')
     #     if err < tol:
     #         print ('Iterations:', iter, ', Total time', p)
     #     conc_T << T_
