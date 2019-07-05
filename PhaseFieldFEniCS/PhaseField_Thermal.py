@@ -58,8 +58,8 @@ E = 380.0e9		                                # Young's modulus: MPa (Chu 2017-4.
 nu = 0.25		                                # Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		                                # critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-l = 1.0e-3		                                # length scale: mm (Chu 2017-4.1)
-hsize = l/2.		                            # mesh size: mm (Chu 2017-4.1)
+hsize = 5.0e-4		                            # mesh size: mm (Chu 2017-4.1)
+l = 2 * hsize                                   # length scale: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	                        # initial temperature of slab: K (Chu 2017-3.3)
 Tw = Constant(300.)	                            # temperature of surface contacted with water: K (Chu 2017-3.3)
