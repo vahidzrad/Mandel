@@ -14,7 +14,7 @@ from dolfin_utils.meshconvert import meshconvert
 #=======================================================================================
 # Input date
 #=======================================================================================
-hsize=2.0e-4
+hsize=5.0e-4
 
 #=======================================================================================
 # Geometry and mesh generation
@@ -26,17 +26,17 @@ geofile = \
         """
             lc = DefineNumber[ %g, Name "Parameters/lc" ];
             H = 9.8e-3;
-            L = 9.8e-3;
+            L = 50.0e-3;
 
-            a = 2.0e-3;
+            // a = 5.0e-3;
 
             Point(1) = {0, 0, 0, lc};
             Point(2) = {L, 0, 0, lc};
             Point(3) = {L, H, 0, lc};
             Point(4) = {0, H, 0, lc};
 
-            Point(5) = {L/2.0-a, H/2.0, 0, 1*lc};
-            Point(6) = {L/2.0+a, H/2.0, 0, 1*lc};
+            // Point(5) = {L/2.0-a, H/2.0, 0, 1*lc};
+            // Point(6) = {L/2.0+a, H/2.0, 0, 1*lc};
             
             Line(1) = {1, 2};
             Line(2) = {2, 3};
@@ -46,13 +46,13 @@ geofile = \
 
             Plane Surface(30) = {5};
 
-            Line(6) = {5, 6};
+            // Line(6) = {5, 6};
             
-            Line{6} In Surface{30};
+            // Line{6} In Surface{30};
             
             Physical Surface(1) = {30};
 
-            Physical Line(101) = {6};
+            // Physical Line(101) = {6};
 
 """%(hsize)
 

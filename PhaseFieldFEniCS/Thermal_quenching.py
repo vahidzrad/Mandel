@@ -34,12 +34,12 @@ solver_u_parameters ={"linear_solver", "mumps", # prefer "superlu_dist" or "mump
             "symmetric", True,
             "nonlinear_solver", "newton"}
 
-L = 9.8e-3                                     # Width: mm (Chu 2017-3.3)
+L = 50.0e-3                                     # Width: mm (Chu 2017-3.3)
 H = 9.8e-3                                      # Height: mm (Chu 2017-3.3)
-a = 2.0e-3                                      # 2a: mm (2a is length of crack)
+# a = 5.0e-3                                    # 2a: mm (2a is length of crack)
 
 subdir = "meshes/"
-meshname = "mesh" # "fracking_hsize%g" % (hsize)
+meshname = "mesh" # "fracking_hsize%g" % (h_size)
 
 mesh = Mesh(subdir + meshname + ".xml")
 
@@ -53,18 +53,21 @@ d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_T), TrialFunction(V_T), TestFunction(V_T)
 H_ = Function(V_d)
 
+n_dim = len(u_)
 # Introduce manually the material parameters
 E = 380.0e9		                                # Young's modulus: MPa (Chu 2017-4.1)
 nu = 0.25		                                # Poisson's ratio: - (Chu 2017-4.1)
 Gc = 26.95		                                # critical energy release rate: MPa-mm (Chu 2017-4.1)
 
-hsize = 5.0e-4		                            # mesh size: mm (Chu 2017-4.1)
-l = 2.0 * hsize                                 # length scale: mm (Chu 2017-4.1)
+h_size = 5.0e-4		                            # mesh size: mm (Chu 2017-4.1)
+ell = 4.0 * h_size                              # length scale: mm (Chu 2017-4.1)
 
 Ts = Constant(680.)  	                        # initial temperature of slab: K (Chu 2017-3.3)
 Tw = Constant(300.)	                            # temperature of surface contacted with water: K (Chu 2017-3.3)
 
-lmbda = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (conversion formulae)
+lmbda = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (for plane strain)
+# lmbda = Constant(E*nu/(1.0-nu**2))		        # Lamé constant: MPa (for plane stress)
+
 mu = Constant(E/(2*(1+nu)))      				# shear modulus: MPa (conversion formulae)
 
 rho = 3.9e3 						            # density: kg/m^3 (Chu 2017-4.1)
@@ -74,59 +77,65 @@ alpha = Constant(6.6e-6)                        # linear expansion coefficient: 
 c = Constant(961.5) 					        # specific heat of material: #J/(kgK) (Chu 2017-4.1)
 k = Constant(21.0)  					        # thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
 cw = 2.0/3.0                                    # To choose if AT1 or AT2 model is used.
-deltaT = rho * c * hsize**2 / k                 # source: (Chu2017-3.3: hsize vs H?)
+deltaT = rho * c * h_size**2 / k                 # source: (Chu2017-3.3: h_size vs H?)
 # print('DeltaT', deltaT)
 
-# Constituive functions
+# Constitutive functions
 # strain
+
+
 def epsilon(u_):
     return sym(grad(u_))
 
-def epsilonT(u_, T_):
-    return alpha * (T_) * Identity(len(u_))
 
-# def epsilone(u_, T_):
-#     return epsilon(u_) - epsilonT(u_, T_)
+def epsilon_t(T_):
+    return alpha * T_ * Identity(n_dim)
 
-def epsilone(u_, T_):
-    return sym(grad(u_))
+
+def epsilon_e(u_, T_):
+    return epsilon(u_) - epsilon_t(T_)
+
+
+# def epsilon_e(u_, T_):
+#     return sym(grad(u_))
 
 
 # stress
-def sigma(u_, T_): # no decomposition
-    return lmbda * tr(epsilone(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilone(u_, T_))
+def sigma(u_, T_):      # no decomposition
+    return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
 
 
-def sigmap(u_, T_): # sigma_+ for Amor's model
-    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_)) \
-    + 2.0 * mu * dev(epsilone(u_, T_))
+def sigma_p(u_, T_):    # sigma_+ for Amor's model
+    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_)) \
+           + 2.0 * mu * dev(epsilon_e(u_, T_))
 
 
-def sigman(u_, T_): # sigma_- for Amor's model
-    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0 * Identity(len(u_))
+def sigma_n(u_, T_):    # sigma_- for Amor's model
+    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
 
 
 # strain energy
 def psi(u_, T_):
-    return lmbda/2.0 * tr(epsilone(u_, T_))**2 + mu * inner(epsilone(u_, T_), epsilone(u_, T_))
+    return lmbda/2.0 * tr(epsilon_e(u_, T_))**2 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
 
 
-def psip(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) + abs(tr(epsilone(u_, T_))))/2.0)**2.0 \
-    + mu * inner(dev(epsilone(u_, T_)), dev(epsilone(u_, T_)))
+def psi_p(u_, T_):
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0)**2.0 \
+           + mu * inner(dev(epsilon_e(u_, T_)), dev(epsilon_e(u_, T_)))
 
 
-def psin(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilone(u_, T_)) - abs(tr(epsilone(u_, T_))))/2.0)**2.0
+def psi_n(u_, T_):
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0)**2.0
 
 # def H(u_, T_):
-#     return 0.5 * (abs(psin(u_, T_) - psip(u_, T_)) + abs(psin(u_, T_) + psip(u_, T_)))
+#     return 0.5 * (abs(psi_n(u_, T_) - psi_p(u_, T_)) + abs(psi_n(u_, T_) + psi_p(u_, T_)))
+
 
 # Boundary conditions
 top = CompiledSubDomain("near(x[1], 9.8e-3) && on_boundary")
 bot = CompiledSubDomain("near(x[1], 0.0) && on_boundary")
 left = CompiledSubDomain("near(x[0], 0.0) && on_boundary")
-right = CompiledSubDomain("near(x[0], 9.8e-3) && on_boundary")
+right = CompiledSubDomain("near(x[0], 50.0e-3) && on_boundary")
 
 
 class Pinpoint(SubDomain):
@@ -141,28 +150,28 @@ class Pinpoint(SubDomain):
         return np.linalg.norm(x-self.coords) < TOL
 
 
-pinpoint_l = Pinpoint([H/2.0,L/2.0])
+pinpoint_l = Pinpoint([L,H])
 pinpoint_r = Pinpoint([L,0.])
 
-load_top = Expression(("0.0", "t"), t = 0.0, degree=1)
-load_bot = Expression(("0.0", "-t"), t = 0.0, degree=1)
+load_top = Expression(("0.0", "t"), t=0.0, degree=1)
+load_bot = Expression(("0.0", "-t"), t=0.0, degree=1)
 # load_bot = Expression(("0.0", "0.0"))
 
 # Boundary conditions for u
 bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-bc_u_bot = DirichletBC(V_u, load_bot, bot)
-bc_u_top = DirichletBC(V_u, load_top, top)
+# bc_u_bot = DirichletBC(V_u, load_bot, bot)
+# bc_u_top = DirichletBC(V_u, load_top, top)
+bc_u_right = DirichletBC(V_u, Constant([0.0, 0.0]), right)
+bc_u = [bc_u_right]
 
-# bc_u = [bc_u_pt_left, bc_u_pt_right]
-bc_u = [bc_u_bot, bc_u_top]
+# def Crack(x):
+#     return abs(x[1] - H/2.0) < DOLFIN_EPS and abs(x[0] - L/2.0) <= a
 
-
-def Crack(x):
-    return abs(x[1] - H/2.0) < DOLFIN_EPS and abs(x[0] - L/2.0) <= a
-
-
-bc_d = [DirichletBC(V_d, Constant(1.0), Crack)]
+# bc_d_left = DirichletBC(V_d, Constant(0.0), left)
+bc_d_right = DirichletBC(V_d, Constant(0.0), right)
+# bc_d = [DirichletBC(V_d, Constant(0.0), right)]
+bc_d = [bc_d_right]
 
 # Boundary conditions for T
 bc_T_top = DirichletBC(V_T, Tw, top)
@@ -176,7 +185,7 @@ top.mark(boundaries,1)
 bot.mark(boundaries,2)
 left.mark(boundaries,3)
 right.mark(boundaries,4)
-ds = Measure("ds")(subdomain_data = boundaries)
+ds = Measure("ds")(subdomain_data=boundaries)
 n = FacetNormal(mesh)
 
 zero_v = Constant((0.,)*2)
@@ -186,22 +195,22 @@ d0 = interpolate(Constant(0.0), V_d)
 T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 
 # Energy form
-# E_u = (1.0 - d_)**2.0 * psip(u_, T_) * dx + psin(u_, T_) * dx
+# E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
 E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
-E_d = 1.0/(4.0 * cw) * Gc * (d_**2/l * dx + l * inner(grad(d_), grad(d_)) * dx)
+E_d = 1.0/(4.0 * cw) * Gc * (d_/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
 # E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 
 # weak form with refer to Chu 2017
 # E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 
-# E_u = (1.0 - d_)**2.0 * inner(sigmap(u_, T_), epsilone(u_t, T_t)) * dx + \
-#       (1.0 - d_)**2.0 * inner(sigmap(u_, T_), epsilone(u_t, T_t)) * dx + \
+# E_u = (1.0 - d_)**2.0 * inner(sigma_p(u_, T_), epsilon_e(u_t, T_t)) * dx + \
+#       (1.0 - d_)**2.0 * inner(sigma_p(u_, T_), epsilon_e(u_t, T_t)) * dx + \
 #       (1.0 - d_)**2.0 * inner(dev(sigma(u_, T_)), dev(u_t, T_t)) * dx
 #
 # E_d = -2.0 * (1.0 - d_) * d_t * inner(dev(sigma(u_, T_)), dev(u_, T_)) * dx + \
-#     + Gc/(4.0 * cw)/l * (2.0 * d_ * d_t + 2.0 * l**2.0 * inner(grad(d_), grad(d_t))) * dx
+#     + Gc/(4.0 * cw)/ell * (2.0 * d_ * d_t + 2.0 * ell**2.0 * inner(grad(d_), grad(d_t))) * dx
 
-E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T_t * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T_t)) * dx
+E_T = rho * c * (T_ - T0) * T_t * dx - deltaT * k * inner(grad(T_), grad(T_t)) * dx
 # End
 
 Pi = E_u + E_d
@@ -220,6 +229,7 @@ prm["newton_solver"]["linear_solver"] = "mumps"
 
 Dd_Pi = derivative(Pi, d_, d_t)
 J_d = derivative(Dd_Pi, d_, d)
+
 
 class DamageProblem(OptimisationProblem):
     
@@ -240,6 +250,7 @@ class DamageProblem(OptimisationProblem):
     def J(self, A, x):
         d_.vector()[:] = x
         assemble(J_d, tensor=A)
+
 
 # Create the PETScTAOSolver
 problem_d = DamageProblem()
@@ -285,11 +296,11 @@ conc_T = File ("./ResultsDir/T.pvd")
 
 # u_.vector()[:] = u0.vector()
 solver_u.solve()
-# u0.vector()[:] = u_.vector()
+u0.vector()[:] = u_.vector()
 
 # d_.vector()[:] = d0.vector()
 solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
-# d0.vector()[:] = d_.vector()
+d0.vector()[:] = d_.vector()
 
 # conc_u << u_
 # ipdb.set_trace()
@@ -299,8 +310,8 @@ for (i_p, p) in enumerate(load_multipliers):
 
     iter = 0
     err = 1.0
-    load_top.t = 1.0e-5 * p
-    load_bot.t = 1.0e-5 * p
+    # load_top.t = 1.0e-7 * p
+    # load_bot.t = 1.0e-5 * p
     # print('Load: ', load_top.t)
     
     while err > tol and iter < max_iterations:
@@ -335,15 +346,15 @@ for (i_p, p) in enumerate(load_multipliers):
     # err = 1.0
     # while err > tol and iter < max_iterations:
     #     iter += 1
-        solver_T.solve()
+    #     solver_T.solve()
     #     err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
-    #
-    #     # # # T0.assign(T_)
+    # #
+    # #     # # # T0.assign(T_)
     #     T0.vector()[:] = T_.vector()
-    #     if err < tol:
-    #         print ('Iterations:', iter, ', Total time', p)
-    #     conc_T << T_
+    # #     if err < tol:
+    # #         print ('Iterations:', iter, ', Total time', p)
+    # conc_T << T_
 
-    
+
 # fname.close()
 print ('Simulation completed')
