@@ -62,7 +62,7 @@ Gc = 26.95		                                # critical energy release rate: MPa-
 h_size = 5.0e-4		                            # mesh size: mm (Chu 2017-4.1)
 ell = 4.0 * h_size                              # length scale: mm (Chu 2017-4.1)
 
-Ts = Constant(680.)  	                        # initial temperature of slab: K (Chu 2017-3.3)
+Ts = Constant(300.01)  	                        # initial temperature of slab: K (Chu 2017-3.3)
 Tw = Constant(300.)	                            # temperature of surface contacted with water: K (Chu 2017-3.3)
 
 lmbda = Constant(E*nu/((1+nu)*(1-2*nu)))		# Lamé constant: MPa (for plane strain)
@@ -154,16 +154,18 @@ pinpoint_l = Pinpoint([L,H])
 pinpoint_r = Pinpoint([L,0.])
 
 load_top = Expression(("0.0", "t"), t=0.0, degree=1)
-load_bot = Expression(("0.0", "-t"), t=0.0, degree=1)
+load_bot = Expression(("0.0", "0.0"), t=0.0, degree=1)
 # load_bot = Expression(("0.0", "0.0"))
 
 # Boundary conditions for u
 bc_u_pt_left = DirichletBC(V_u, Constant([0.,0.]), pinpoint_l, method='pointwise')
 bc_u_pt_right = DirichletBC(V_u, Constant([0.,0.]), pinpoint_r, method='pointwise')
-# bc_u_bot = DirichletBC(V_u, load_bot, bot)
-# bc_u_top = DirichletBC(V_u, load_top, top)
+
+bc_u_bot = DirichletBC(V_u, load_bot, bot)
+bc_u_top = DirichletBC(V_u, load_top, top)
 bc_u_right = DirichletBC(V_u, Constant([0.0, 0.0]), right)
-bc_u = [bc_u_right]
+bc_u_left = DirichletBC(V_u, Constant([0.0, 0.0]), left)
+bc_u = [bc_u_left, bc_u_right]
 
 # def Crack(x):
 #     return abs(x[1] - H/2.0) < DOLFIN_EPS and abs(x[0] - L/2.0) <= a
@@ -210,7 +212,7 @@ E_d = 1.0/(4.0 * cw) * Gc * (d_/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
 # E_d = -2.0 * (1.0 - d_) * d_t * inner(dev(sigma(u_, T_)), dev(u_, T_)) * dx + \
 #     + Gc/(4.0 * cw)/ell * (2.0 * d_ * d_t + 2.0 * ell**2.0 * inner(grad(d_), grad(d_t))) * dx
 
-E_T = rho * c * (T_ - T0) * T_t * dx - deltaT * k * inner(grad(T_), grad(T_t)) * dx
+E_T = rho * c / deltaT * (T_ - T0) * T_t * dx - k * inner(grad(T_), grad(T_t)) * dx
 # End
 
 Pi = E_u + E_d
@@ -302,27 +304,28 @@ u0.vector()[:] = u_.vector()
 solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
 d0.vector()[:] = d_.vector()
 
-# conc_u << u_
+solver_T.solve()
+T0.vector()[:] = T_.vector()
 # ipdb.set_trace()
 
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
 
-    iter = 0
+    itr = 0
     err = 1.0
     # load_top.t = 1.0e-7 * p
     # load_bot.t = 1.0e-5 * p
     # print('Load: ', load_top.t)
     
-    while err > tol and iter < max_iterations:
-        iter += 1
+    while err > tol and itr < max_iterations:
+        itr += 1
         solver_u.solve()
         solver_d.solve(problem_d, d_.vector(), d_lb.vector(), d_ub.vector())
         # solver_T.solve()
     #
         err_u = errornorm(u_, u0, norm_type = 'l2', mesh = None)
         err_d = errornorm(d_, d0, norm_type = 'l2', mesh = None)
-    #     err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+        # err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
     #
         err = max(err_d, err_u)
         # err = err_d
@@ -332,7 +335,7 @@ for (i_p, p) in enumerate(load_multipliers):
         d0.vector()[:] = d_.vector()
     
         if err < tol:
-            print ('Iterations:', iter, ', Total time', p)
+            print ('Iterations:', itr, ', Total time', p)
             conc_d << d_
             conc_u << u_
     #
@@ -342,18 +345,18 @@ for (i_p, p) in enumerate(load_multipliers):
     #     # fname.write(str(p*u_r) + "\t")
     #     # fname.write(str(assemble(fy)) + "\n")
     
-    # iter = 0
-    # err = 1.0
-    # while err > tol and iter < max_iterations:
-    #     iter += 1
-    #     solver_T.solve()
-    #     err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
+    itr = 0
+    err = 1.0
+    while err > tol and itr < max_iterations:
+        itr += 1
+        solver_T.solve()
+        err_T = errornorm(T_, T0, norm_type = 'l2', mesh = None)
     # #
     # #     # # # T0.assign(T_)
-    #     T0.vector()[:] = T_.vector()
+        T0.vector()[:] = T_.vector()
     # #     if err < tol:
-    # #         print ('Iterations:', iter, ', Total time', p)
-    # conc_T << T_
+    # #         print ('Iterations:', itr, ', Total time', p)
+    conc_T << T_
 
 
 # fname.close()
