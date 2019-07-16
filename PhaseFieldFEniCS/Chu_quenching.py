@@ -101,9 +101,23 @@ def epsilon_e(u_, T_):
 #     return sym(grad(u_))
 
 
+# strain energy
+def psi(u_, T_):
+    return lmbda/2.0 * tr(epsilon_e(u_, T_))**2.0 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
+
+
+def psi_n(u_, T_):
+    return psi(u_, T_) - 0.5 * (lmbda + mu) * tr(epsilon_e(u_, T_))**2.0
+
+
+def psi_p(u_, T_):      # This shall be used everywhere.
+    return psi(u_, T_) * (tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0 \
+           + psi_n(u_, T_) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0
+
+
 # stress
 def sigma(u_, T_):      # no decomposition
-    return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
+    return derivative(psi(u_, T_), epsilon(u_))
 
 
 def sigma_p(u_, T_):    # sigma_+ for Amor's model
@@ -115,18 +129,27 @@ def sigma_n(u_, T_):    # sigma_- for Amor's model
     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
 
 
-# strain energy
-def psi(u_, T_):
-    return lmbda/2.0 * tr(epsilon_e(u_, T_))**2 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
+# # stress
+# def sigma(u_, T_):      # no decomposition
+#     return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
+#
+#
+# def sigma_p(u_, T_):    # sigma_+ for Amor's model
+#     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_)) \
+#            + 2.0 * mu * dev(epsilon_e(u_, T_))
+#
+#
+# def sigma_n(u_, T_):    # sigma_- for Amor's model
+#     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
 
 
-def psi_p(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0)**2.0 \
-           + mu * inner(dev(epsilon_e(u_, T_)), dev(epsilon_e(u_, T_)))
+# def psi_p(u_, T_):
+#     return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0)**2.0 \
+#            + mu * inner(dev(epsilon_e(u_, T_)), dev(epsilon_e(u_, T_)))
 
 
-def psi_n(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0)**2.0
+# def psi_n(u_, T_):
+#     return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0)**2.0
 
 # def H(u_, T_):
 #     return 0.5 * (abs(psi_n(u_, T_) - psi_p(u_, T_)) + abs(psi_n(u_, T_) + psi_p(u_, T_)))
