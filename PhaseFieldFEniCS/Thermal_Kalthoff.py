@@ -45,10 +45,12 @@ mesh = Mesh(subdir + mesh_name + ".xml")
 
 # Define Space
 V_u = VectorFunctionSpace(mesh, 'CG', 1)
+# V_v = VectorFunctionSpace(mesh, 'CG', 1)
 V_d = FunctionSpace(mesh, 'CG', 1)
 V_T = FunctionSpace(mesh, 'CG', 1)
 
 u_, u, u_t = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
+# v_, v, v_t = Function(V_v), TrialFunction(V_v), TestFunction(V_v)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_T), TrialFunction(V_T), TestFunction(V_T)
 # H_ = Function(V_d)
@@ -77,7 +79,7 @@ alpha = Constant(6.6e-6)                        # linear expansion coefficient: 
 c = Constant(961.5) 					        # specific heat of material: #J/(kgK) (Chu 2017-4.1)
 k = Constant(21.0)  					        # thermal conductivity: #W/(mK)=J/(mKs) (Chu 2017-4.1)
 
-cw = 1.0/2.0                                    # To choose if AT1 or AT2 model is used.
+cw = 2.0/3.0                                    # To choose if AT1 or AT2 model is used.
 
 deltaT = 2.5e-8                                 # source: (Chu2017-3.3: h_size vs H?)
 # print('DeltaT', deltaT)
@@ -86,8 +88,8 @@ deltaT = 2.5e-8                                 # source: (Chu2017-3.3: h_size v
 # strain
 
 
-# def epsilon(u_):
-#     return sym(grad(u_))
+def epsilon(u_):
+    return sym(grad(u_))
 
 
 def epsilon_t(T_):
@@ -95,12 +97,11 @@ def epsilon_t(T_):
 
 
 def epsilon_e(u_, T_):
-    return epsilon(u_) - epsilon_t(T_)
-
-
-def epsilon_e(u_, T_):
     return sym(grad(u_))
 
+
+# def epsilon_e(u_, T_):
+#     return epsilon(u_) - epsilon_t(T_)
 
 # stress
 def sigma(u_, T_):      # no decomposition
@@ -117,18 +118,24 @@ def sigma_n(u_, T_):    # sigma_- for Amor's model
 
 
 # strain energy
-def psi(u_, T_):
+def psi_p(u_, T_):
     return lmbda/2.0 * tr(epsilon_e(u_, T_))**2 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
 
 
-def psi_p(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0)**2.0 \
-           + mu * inner(dev(epsilon_e(u_, T_)), dev(epsilon_e(u_, T_)))
-
-
 def psi_n(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0)**2.0
+    return psi_p(u_, T_) - 0.5 * (lmbda + mu) * (tr(epsilon_e(u_, T_)))**2.0
 
+
+# def psi(u_, T_):
+#     if tr(epsilon_e(u_, T_)) >= 0:
+#         return psi_p(u_, T_)
+#     else:
+#         return psi_n(u_, T_)
+
+
+def psi(u_, T_):
+    return np.sign(tr(epsilon_e(u_, T_))) * psi_p(u_, T_) + (1.0 - np.sign(tr(epsilon_e(u_, T_)))) * psi_n(u_, T_)
+    
 # def H(u_, T_):
 #     return 0.5 * (abs(psi_n(u_, T_) - psi_p(u_, T_)) + abs(psi_n(u_, T_) + psi_p(u_, T_)))
 
@@ -196,31 +203,36 @@ n = FacetNormal(mesh)
 
 zero_v = Constant((0.,)*2)
 u0 = interpolate(zero_v, V_u)
+v0 = interpolate(zero_v, V_u)
+a0 = interpolate(zero_v, V_u)
+
+# u_old = Function(V_u)
+# v_old = Function(V_u)
+# a_old = Function(V_u)
+
+
+# update v
+def update_a(u_, u0, v0, a0):
+    return 4.0/deltaT * (u_ - u0 - v0 * deltaT - deltaT**2.0/4.0 * a0)
+
+
+def update_v(u_, u0, v0, a0):
+    return v0 + deltaT/2.0 * a0 + deltaT/2.0 * update_a(u_, u0, v0, a0)
+
 
 d0 = interpolate(Constant(0.0), V_d)
-T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
+T0 = interpolate(Expression('T_init', T_init=Ts, degree=1), V_T)
 
 
 # Energy form
-E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
-# E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
-E_d = 1.0/(4.0 * cw) * Gc * (d_**2/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
-# E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
-
-# weak form with refer to Chu 2017
-# E_T = (1.0 - d_)**2 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
-
-# E_u = (1.0 - d_)**2.0 * inner(sigma_p(u_, T_), epsilon_e(u_t, T_t)) * dx + \
-#       (1.0 - d_)**2.0 * inner(sigma_p(u_, T_), epsilon_e(u_t, T_t)) * dx + \
-#       (1.0 - d_)**2.0 * inner(dev(sigma(u_, T_)), dev(u_t, T_t)) * dx
-#
-# E_d = -2.0 * (1.0 - d_) * d_t * inner(dev(sigma(u_, T_)), dev(u_, T_)) * dx + \
-#     + Gc/(4.0 * cw)/ell * (2.0 * d_ * d_t + 2.0 * ell**2.0 * inner(grad(d_), grad(d_t))) * dx
-
+E_ui = rho * inner(update_a(u_, u0, v0, a0), u_t) * dx + inner(sigma(u_, T_), epsilon_e(u_t, T_)) * dx
+# E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
+E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
+E_d = 1.0/(4.0 * cw) * Gc * (d_**2.0/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
 # E_T = rho * c / deltaT * (T_ - T0) * T_t * dx - k * inner(grad(T_), grad(T_t)) * dx
-# End
 
 Pi = E_u + E_d
+# ipdb.set_trace()
 
 Du_Pi = derivative(Pi, u_, u_t)
 J_u = derivative(Du_Pi, u_, u)
