@@ -222,7 +222,6 @@ T0 = interpolate(Expression('T_init', T_init = Ts, degree=1), V_T)
 
 # Energy form
 E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
-# E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
 # E_T = (1.0 - d_)**2.0 * rho * c * (T_ - T0) * T * dx - deltaT * (1.0 - d_)**2 * k * inner(grad(T_), grad(T)) * dx
 

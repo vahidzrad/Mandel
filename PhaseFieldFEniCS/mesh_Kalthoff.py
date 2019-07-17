@@ -14,7 +14,7 @@ from dolfin_utils.meshconvert import meshconvert
 #=======================================================================================
 # Input date
 #=======================================================================================
-hsize=0.125e-3
+hsize=9.75e-4
 
 #=======================================================================================
 # Geometry and mesh generation
@@ -25,44 +25,37 @@ meshname="mesh"
 geofile = \
         """
             lc = DefineNumber[ %g, Name "Parameters/lc" ];
-            H = 40.0e-3;
+            H = 100.0e-3;
             L = 100.0e-3;
 
-            a = 50.0e-3;
+            a = 25.0e-3;
 
-            Point(1) = {0, 0, 0, 10*lc};
-            Point(2) = {L, 0, 0, 10*lc};
-            Point(3) = {L, H, 0, 10*lc};
-            Point(4) = {0, H, 0, 10*lc};
+            Point(1) = {0, 0, 0, lc};
+            Point(2) = {L, 0, 0, lc};
+            
+            Point(3) = {L, a, 0, lc};
+            Point(4) = {L, H, 0, lc};
+            
+            Point(5) = {0, H, 0, lc};
+            Point(6) = {0, a, 0, lc};
 
-            Point(5) = {0, H/2.0, 0, 1*lc};
-            Point(6) = {L, H/2.0, 0, 1*lc};
-            Point(7) = {L/2.0, H/2.0, 0, 1*lc};
             
             Line(1) = {1, 2};
-            Line(2) = {2, 6};
-            Line(3) = {6, 3};
-            Line(4) = {3, 4};
-            Line(5) = {4, 5};
-            Line(6) = {5, 1};
-            Line(7) = {5, 7};
-            Line(8) = {7, 6};
+            Line(2) = {2, 3};
+            Line(3) = {3, 6};
+            Line(4) = {6, 1};
+            Line Loop(5) = {1, 2, 3, 4};
             
-            Line Loop(100) = {1, 2, -8, -7, 6};
-            Line Loop(200) = {7, 8, 3, 4, 5};
+            Line(6) = {3, 4};
+            Line(7) = {4, 5};
+            Line(8) = {5, 6};
+            Line Loop(9) = {-3, 6, 7, 8};
             
-
-            Plane Surface(1000) = {100};
-            Plane Surface(2000) = {200};
+            Plane Surface(10) = {5};
+            Plane Surface(11) = {9};
             
-            // Line(6) = {5, 6};
-            
-            // Line{6} In Surface{30};
-            
-            Physical Surface(1) = {1000};
-            Physical Surface(2) = {2000};
-            
-            // Physical Line(101) = {6};
+            Physical Surface(1) = {10};
+            Physical Surface(2) = {11};
 
 """%(hsize)
 
