@@ -14,6 +14,7 @@
 from dolfin import *
 import numpy as np
 import ipdb
+# from ufl import *
 
 set_log_level(20)
 
@@ -212,7 +213,7 @@ a0 = interpolate(zero_v, V_u)
 
 
 # update v
-def update_a(u_, u0, v0, a0):
+def update_a(u_, u0, v0, a0, ufl=True):
     return 4.0/deltaT * (u_ - u0 - v0 * deltaT - deltaT**2.0/4.0 * a0)
 
 
