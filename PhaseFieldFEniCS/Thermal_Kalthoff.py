@@ -104,19 +104,6 @@ def epsilon_e(u_, T_):
 # def epsilon_e(u_, T_):
 #     return epsilon(u_) - epsilon_t(T_)
 
-# stress
-def sigma(u_, T_):      # no decomposition
-    return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
-
-
-def sigma_p(u_, T_):    # sigma_+ for Amor's model
-    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_)) \
-           + 2.0 * mu * dev(epsilon_e(u_, T_))
-
-
-def sigma_n(u_, T_):    # sigma_- for Amor's model
-    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
-
 
 # strain energy
 def psi_p(u_, T_):
@@ -128,17 +115,36 @@ def psi_n(u_, T_):
 
 
 # def psi(u_, T_):
-#     if tr(epsilon_e(u_, T_)) >= 0:
+#     if tr(epsilon_e(u_, T_)) >= 0.:
 #         return psi_p(u_, T_)
 #     else:
 #         return psi_n(u_, T_)
 
+# stress
+def sigma(u_, T_):      # no decomposition
+    return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
 
-def psi(u_, T_):
-    return np.sign(tr(epsilon_e(u_, T_))) * psi_p(u_, T_) + (1.0 - np.sign(tr(epsilon_e(u_, T_)))) * psi_n(u_, T_)
+
+# def sigma(u_, T_):      # no decomposition
+#     return derivative(psi_p(u_, T_), epsilon_e(u_, T_))
+
+
+def sigma_p(u_, T_):    # sigma_+ for Amor's model
+    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_)) \
+           + 2.0 * mu * dev(epsilon_e(u_, T_))
+
+
+def sigma_n(u_, T_):    # sigma_- for Amor's model
+    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
+
+
+# ipdb.set_trace()
+
+# def psi(u_, T_):
+#     return np.sign(tr(epsilon_e(u_, T_))) * psi_p(u_, T_) + (1.0 - np.sign(tr(epsilon_e(u_, T_)))) * psi_n(u_, T_)
     
-# def H(u_, T_):
-#     return 0.5 * (abs(psi_n(u_, T_) - psi_p(u_, T_)) + abs(psi_n(u_, T_) + psi_p(u_, T_)))
+def H(u_, T_):
+    return 0.5 * (abs(psi_n(u_, T_) - psi_p(u_, T_)) + abs(psi_n(u_, T_) + psi_p(u_, T_)))
 
 
 # Boundary conditions
@@ -227,8 +233,7 @@ T0 = interpolate(Expression('T_init', T_init=Ts, degree=1), V_T)
 
 # Energy form
 E_ui = rho * inner(update_a(u_, u0, v0, a0), u_t) * dx + inner(sigma(u_, T_), epsilon_e(u_t, T_)) * dx
-# E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
-E_u = (1.0 - d_)**2.0 * psi(u_, T_) * dx
+E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_**2.0/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
 # E_T = rho * c / deltaT * (T_ - T0) * T_t * dx - k * inner(grad(T_), grad(T_t)) * dx
 
@@ -328,8 +333,8 @@ d0.vector()[:] = d_.vector()
 # solver_T.solve()
 # T0.vector()[:] = T_.vector()
 
-# conc_d << d_
-# ipdb.set_trace()
+conc_d << d_
+ipdb.set_trace()
 
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
