@@ -350,6 +350,11 @@ d0.vector()[:] = d_.vector()
 # conc_d << d_
 # S0 = project(sym(grad(u_)), V_s)
 # conc_d << S0
+
+
+def tr_p(trS):
+    return trS > 0.
+
 # ipdb.set_trace()
 
 # Staggered scheme
@@ -383,7 +388,8 @@ for (i_p, p) in enumerate(load_multipliers):
             conc_d << d_
             conc_u << u_
             S0 = project(sigma_n(u_, T_), V_s)
-            trS = project(tr(sigma_p(u_, T_)), V_d)
+            trS = project(abs(tr(sigma_p(u_, T_))) - tr(sigma_p(u_, T_)), V_d)
+            # trP = tr_p(trS)
             conc_T << trS
 
     #
@@ -405,7 +411,6 @@ for (i_p, p) in enumerate(load_multipliers):
     # # #     if err < tol:
     # # #         print ('Iterations:', itr, ', Total time', p)
     # conc_T << T_
-
 
 # fname.close()
 print ('Simulation completed')
