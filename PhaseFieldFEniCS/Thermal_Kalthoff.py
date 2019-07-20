@@ -46,15 +46,15 @@ mesh = Mesh(subdir + mesh_name + ".xml")
 
 # Define Space
 V_u = VectorFunctionSpace(mesh, 'CG', 1)
-# V_v = VectorFunctionSpace(mesh, 'CG', 1)
+V_s = TensorFunctionSpace(mesh, 'DG', 0)
 V_d = FunctionSpace(mesh, 'CG', 1)
 V_T = FunctionSpace(mesh, 'CG', 1)
 
 u_, u, u_t = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
-# v_, v, v_t = Function(V_v), TrialFunction(V_v), TestFunction(V_v)
+s_ = Function(V_s)
 d_, d, d_t = Function(V_d), TrialFunction(V_d), TestFunction(V_d)
 T_, T, T_t = Function(V_T), TrialFunction(V_T), TestFunction(V_T)
-# H_ = Function(V_d)
+
 
 n_dim = len(u_)
 # Introduce manually the material parameters
@@ -86,9 +86,9 @@ deltaT = 2.5e-8                                 # source: (Chu2017-3.3: h_size v
 # print('DeltaT', deltaT)
 
 # Constitutive functions
+
+
 # strain
-
-
 def epsilon(u_):
     return sym(grad(u_))
 
@@ -106,27 +106,31 @@ def epsilon_e(u_, T_):
 
 
 # strain energy
-def psi_p(u_, T_):
+def psi(u_, T_): # Note: The trace operator is understood in three-dimensions setting,
+    # and it accommodates both plane strain and plane stress cases.
     return lmbda/2.0 * tr(epsilon_e(u_, T_))**2 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
 
 
-def psi_n(u_, T_):
-    return psi_p(u_, T_) - 0.5 * (lmbda + mu) * (tr(epsilon_e(u_, T_)))**2.0
+def psi_p(u_, T_):
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0)**2.0 \
+           + mu * inner(dev(epsilon_e(u_, T_)), dev(epsilon_e(u_, T_)))
 
+
+def psi_n(u_, T_):
+    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0)**2.0
 
 # def psi(u_, T_):
-#     if tr(epsilon_e(u_, T_)) >= 0.:
+#     # if tr(epsilon_e(u_, T_)) >= 0.:
+#     if tr(epsilon_e(u_, T_)) >= uu0:
 #         return psi_p(u_, T_)
 #     else:
 #         return psi_n(u_, T_)
 
+
 # stress
-def sigma(u_, T_):      # no decomposition
+def sigma(u_, T_): # Note: The trace operator is understood in three-dimensions setting,
+    # and it accommodates both plane strain and plane stress cases.
     return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
-
-
-# def sigma(u_, T_):      # no decomposition
-#     return derivative(psi_p(u_, T_), epsilon_e(u_, T_))
 
 
 def sigma_p(u_, T_):    # sigma_+ for Amor's model
@@ -138,13 +142,23 @@ def sigma_n(u_, T_):    # sigma_- for Amor's model
     return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
 
 
+# class DecomposePsi(u_, T_):
+    # def __init__(self):
+    #     self.uu = u_
+    #     self.TT = T_
+    #
+    # def epsilon_e(uu, TT):
+    #     return sym(grad(uu))
+    #
+    # def psi_p(u_, T_):
+    #     return lmbda / 2.0 * tr(epsilon_e(u_, T_)) ** 2 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
+    
+    
+    
 # ipdb.set_trace()
 
 # def psi(u_, T_):
 #     return np.sign(tr(epsilon_e(u_, T_))) * psi_p(u_, T_) + (1.0 - np.sign(tr(epsilon_e(u_, T_)))) * psi_n(u_, T_)
-    
-def H(u_, T_):
-    return 0.5 * (abs(psi_n(u_, T_) - psi_p(u_, T_)) + abs(psi_n(u_, T_) + psi_p(u_, T_)))
 
 
 # Boundary conditions
@@ -232,7 +246,7 @@ T0 = interpolate(Expression('T_init', T_init=Ts, degree=1), V_T)
 
 
 # Energy form
-E_ui = rho * inner(update_a(u_, u0, v0, a0), u_t) * dx + inner(sigma(u_, T_), epsilon_e(u_t, T_)) * dx
+# E_ui = rho * inner(update_a(u_, u0, v0, a0), u_t) * dx + inner(sigma(u_, T_), epsilon_e(u_t, T_)) * dx
 E_u = (1.0 - d_)**2.0 * psi_p(u_, T_) * dx + psi_n(u_, T_) * dx
 E_d = 1.0/(4.0 * cw) * Gc * (d_**2.0/ell * dx + ell * inner(grad(d_), grad(d_)) * dx)
 # E_T = rho * c / deltaT * (T_ - T0) * T_t * dx - k * inner(grad(T_), grad(T_t)) * dx
@@ -310,8 +324,8 @@ for bc in bc_d:
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
-max_step = 1.0
-n_step = 101
+max_step = 0.1
+n_step = 11
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
@@ -333,8 +347,10 @@ d0.vector()[:] = d_.vector()
 # solver_T.solve()
 # T0.vector()[:] = T_.vector()
 
-conc_d << d_
-ipdb.set_trace()
+# conc_d << d_
+# S0 = project(sym(grad(u_)), V_s)
+# conc_d << S0
+# ipdb.set_trace()
 
 # Staggered scheme
 for (i_p, p) in enumerate(load_multipliers):
@@ -366,6 +382,10 @@ for (i_p, p) in enumerate(load_multipliers):
             print ('Iterations:', itr, ', Total time', p)
             conc_d << d_
             conc_u << u_
+            S0 = project(sigma_n(u_, T_), V_s)
+            trS = project(tr(sigma_p(u_, T_)), V_d)
+            conc_T << trS
+
     #
     #     # Traction = dot(sigma(u_, T_), n)
     #     # fy = Traction[1]*ds(1)
