@@ -112,12 +112,12 @@ def psi(u_, T_): # Note: The trace operator is understood in three-dimensions se
 
 
 def psi_p(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0)**2.0 \
+    return (lmbda/2.0 + mu/3.0) * ((2.0/3.0 * tr(epsilon_e(u_, T_)) + abs(2.0/3.0 * tr(epsilon_e(u_, T_))))/2.0)**2.0 \
            + mu * inner(dev(epsilon_e(u_, T_)), dev(epsilon_e(u_, T_)))
 
 
 def psi_n(u_, T_):
-    return (lmbda/2.0 + mu/3.0) * ((tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0)**2.0
+    return (lmbda/2.0 + mu/3.0) * ((2.0/3.0 * tr(epsilon_e(u_, T_)) - abs(2.0/3.0 * tr(epsilon_e(u_, T_))))/2.0)**2.0
 
 # def psi(u_, T_):
 #     # if tr(epsilon_e(u_, T_)) >= 0.:
@@ -130,16 +130,17 @@ def psi_n(u_, T_):
 # stress
 def sigma(u_, T_): # Note: The trace operator is understood in three-dimensions setting,
     # and it accommodates both plane strain and plane stress cases.
-    return lmbda * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
+    return lmbda * 2.0/3.0 * tr(epsilon_e(u_, T_)) * Identity(len(u_)) + 2.0 * mu * (epsilon_e(u_, T_))
 
 
 def sigma_p(u_, T_):    # sigma_+ for Amor's model
-    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) + abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_)) \
-           + 2.0 * mu * dev(epsilon_e(u_, T_))
+    return (lmbda + 2.0 * mu / 3.0) * (2.0/3.0 * tr(epsilon_e(u_, T_)) + abs(2.0/3.0 * tr(epsilon_e(u_, T_))))/2.0 \
+           * Identity(len(u_)) + 2.0 * mu * dev(epsilon_e(u_, T_))
 
 
 def sigma_n(u_, T_):    # sigma_- for Amor's model
-    return (lmbda + 2.0 * mu / 3.0) * (tr(epsilon_e(u_, T_)) - abs(tr(epsilon_e(u_, T_))))/2.0 * Identity(len(u_))
+    return (lmbda + 2.0 * mu / 3.0) * (2.0/3.0 * tr(epsilon_e(u_, T_)) - abs(2.0/3.0 * tr(epsilon_e(u_, T_))))/2.0 \
+           * Identity(len(u_))
 
 
 # class DecomposePsi(u_, T_):
@@ -154,12 +155,10 @@ def sigma_n(u_, T_):    # sigma_- for Amor's model
     #     return lmbda / 2.0 * tr(epsilon_e(u_, T_)) ** 2 + mu * inner(epsilon_e(u_, T_), epsilon_e(u_, T_))
     
     
-    
 # ipdb.set_trace()
 
 # def psi(u_, T_):
 #     return np.sign(tr(epsilon_e(u_, T_))) * psi_p(u_, T_) + (1.0 - np.sign(tr(epsilon_e(u_, T_)))) * psi_n(u_, T_)
-
 
 # Boundary conditions
 top = CompiledSubDomain("near(x[1], 100.0e-3) && on_boundary")
@@ -324,8 +323,8 @@ for bc in bc_d:
 
 # Initialization of the iterative procedure and output requests
 min_step = 0
-max_step = 0.1
-n_step = 11
+max_step = 1.0
+n_step = 101
 load_multipliers = np.linspace(min_step, max_step, n_step)
 max_iterations = 100
 
@@ -352,8 +351,8 @@ d0.vector()[:] = d_.vector()
 # conc_d << S0
 
 
-def tr_p(trS):
-    return trS > 0.
+# def tr_p(trS):
+#     return trS > 0.
 
 # ipdb.set_trace()
 
@@ -387,10 +386,10 @@ for (i_p, p) in enumerate(load_multipliers):
             print ('Iterations:', itr, ', Total time', p)
             conc_d << d_
             conc_u << u_
-            S0 = project(sigma_n(u_, T_), V_s)
-            trS = project(abs(tr(sigma_p(u_, T_))) - tr(sigma_p(u_, T_)), V_d)
-            # trP = tr_p(trS)
-            conc_T << trS
+            # S0 = project(sigma_n(u_, T_), V_s)
+            # trS = project(abs(tr(sigma_p(u_, T_))) - tr(sigma_p(u_, T_)), V_d)
+            # # trP = tr_p(trS)
+            # conc_T << trS
 
     #
     #     # Traction = dot(sigma(u_, T_), n)
