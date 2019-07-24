@@ -223,12 +223,9 @@ n = FacetNormal(mesh)
 
 zero_v = Constant((0.,)*2)
 u0 = interpolate(zero_v, V_u)
+# We need to put here v0
 v0 = interpolate(zero_v, V_u)
 a0 = interpolate(zero_v, V_u)
-
-# u_old = Function(V_u)
-# v_old = Function(V_u)
-# a_old = Function(V_u)
 
 
 # update v
@@ -243,6 +240,8 @@ def update_v(u_, u0, v0, a0):
 d0 = interpolate(Constant(0.0), V_d)
 T0 = interpolate(Expression('T_init', T_init=Ts, degree=1), V_T)
 
+tc = 1.0
+p = Expression(("0", "t <= tc ? p0*t/tc : 0", "0"), t=0, tc=cutoff_Tc, p0=p0, degree=0)
 
 # Energy form
 # E_ui = rho * inner(update_a(u_, u0, v0, a0), u_t) * dx + inner(sigma(u_, T_), epsilon_e(u_t, T_)) * dx
